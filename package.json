@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "prepare": "git config core.hooksPath .githooks || true",
     "db:link": "supabase link --project-ref btjxwvapcycfzaskxhfn",
     "db:push": "supabase db push",
     "db:types": "supabase gen types typescript --linked --schema public > src/lib/supabase/database.types.ts"

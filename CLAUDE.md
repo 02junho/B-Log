@@ -8,7 +8,7 @@ AI 코딩 세션 로그와 Git 커밋을 분석해 "AI를 어떻게 지휘했는
 
 ## 절대 규칙
 
-- 커밋 메시지에 `Co-Authored-By` 등 AI 공동 작성자 트레일러를 넣지 않는다. PR 본문에도 "Generated with ..." 문구를 넣지 않는다. (GitHub contributors에 AI 계정이 뜨지 않게 하기 위함. `.claude/settings.json`에도 설정됨)
+- 커밋 메시지에 `Co-Authored-By` 등 AI 공동 작성자 트레일러를 넣지 않는다. PR 본문에도 "Generated with ..." 문구를 넣지 않는다. (GitHub contributors에 AI 계정이 뜨지 않게 하기 위함.) 안전장치 3겹: `.claude/settings.json`의 `includeCoAuthoredBy: false`, `npm install` 시 자동 활성화되는 `.githooks/commit-msg`(트레일러 자동 제거), GitHub Actions `no-ai-coauthor`(푸시된 커밋 검사).
 - `*.jsonl` 세션 로그와 `.env*` 파일은 커밋하지 않는다. `.gitignore`에 이미 있으니 지우지 말 것.
 - API 키는 사용자가 직접 `.env.local`에 넣는다. 키 값을 코드나 문서에 쓰지 않는다.
 - 새 AI 도구를 쓰기 시작하면 `README.md`의 "사용한 AI 도구" 표에 추가한다 (제출서 필수 항목).
