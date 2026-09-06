@@ -9,17 +9,22 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 export async function GET() {
   const supabase = getSupabaseServerClient();
 
-  let supabaseStatus: "ok" | "not-configured" | "error" = "not-configured";
+  let supabaseStatus: "ok" | "no-schema" | "not-configured" | "error" =
+    "not-configured";
   let supabaseError: string | undefined;
 
   if (supabase) {
-    // 테이블이 아직 없어도 동작하도록 auth 설정 조회로 연결만 확인한다.
-    const { error } = await supabase.auth.getSession();
-    if (error) {
+    // 실제 DB 쿼리를 날려야 Supabase 무료 티어의 "7일 비활성 일시정지" 타이머가 리셋된다.
+    // heartbeat 테이블은 첫 마이그레이션에서 만든다. 그 전에는 "relation does not exist"를
+    // 연결은 됐지만 스키마가 없는 상태로 취급한다.
+    const { error } = await supabase.from("heartbeat").select("id").limit(1);
+    if (!error) {
+      supabaseStatus = "ok";
+    } else if (error.code === "42P01" || error.code === "PGRST205") {
+      supabaseStatus = "no-schema";
+    } else {
       supabaseStatus = "error";
       supabaseError = error.message;
-    } else {
-      supabaseStatus = "ok";
     }
   }
 
