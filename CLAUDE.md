@@ -4,10 +4,11 @@
 
 ## 프로젝트 한 줄
 
-AI 코딩 세션 로그(Claude Code, Codex)와 Git 커밋을 분석해 "AI를 어떻게 지휘했는지"를 증명하는 과정 포트폴리오를 만드는 웹 서비스. 원티드 AI Championship 2026 출품작, 제출 마감 2026-09-20.
+AI 코딩 세션 로그와 Git 커밋을 분석해 "AI를 어떻게 지휘했는지"를 증명하는 과정 포트폴리오를 만드는 웹 서비스. **AI 도구 무관(tool-agnostic)**이 제품 정체성이다. 원티드 AI Championship 2026 출품작, 제출 마감 2026-09-20.
 
 ## 절대 규칙
 
+- 커밋 메시지에 `Co-Authored-By` 등 AI 공동 작성자 트레일러를 넣지 않는다. PR 본문에도 "Generated with ..." 문구를 넣지 않는다. (GitHub contributors에 AI 계정이 뜨지 않게 하기 위함. `.claude/settings.json`에도 설정됨)
 - `*.jsonl` 세션 로그와 `.env*` 파일은 커밋하지 않는다. `.gitignore`에 이미 있으니 지우지 말 것.
 - API 키는 사용자가 직접 `.env.local`에 넣는다. 키 값을 코드나 문서에 쓰지 않는다.
 - 새 AI 도구를 쓰기 시작하면 `README.md`의 "사용한 AI 도구" 표에 추가한다 (제출서 필수 항목).
@@ -15,8 +16,8 @@ AI 코딩 세션 로그(Claude Code, Codex)와 Git 커밋을 분석해 "AI를 �
 
 ## MVP 범위 (엄수)
 
-- In: Claude Code JSONL 업로드(1순위) + Codex rollout JSONL 어댑터, GitHub 공개 레포 연결, 4단계 태깅(문제 정의 → AI 지시 → 근거 탐색·의사결정 → 실패·복구), 커밋↔대화 매칭, 하이라이트 3~5개(원문 인용), 정규식+LLM 2단계 마스킹, 공개 포트폴리오 페이지, GitHub OAuth.
-- Out: Cursor/ChatGPT 등 다른 형식, 팀 분석, PDF 내보내기, 실시간 연동, 다국어. 요청이 와도 "확장 로드맵"으로만 기록한다.
+- In: 입력 입구 3개 — ①Claude Code JSONL 어댑터(1순위) ②Codex rollout JSONL 어댑터 ③범용 대화록(텍스트/마크다운/내보내기 파일을 LLM으로 공통 스키마에 구조화). GitHub 공개 레포 연결, 4단계 태깅(문제 정의 → AI 지시 → 근거 탐색·의사결정 → 실패·복구), 커밋↔대화 매칭, 하이라이트 3~5개(원문 인용), 정규식+LLM 2단계 마스킹, 분석 등급 배지(정밀/요약), 공개 포트폴리오 페이지, GitHub OAuth.
+- Out: Cursor/Gemini CLI/Cline/Aider 등 추가 어댑터, 팀 분석, PDF 내보내기, 실시간 연동, 다국어. 요청이 와도 "확장 로드맵"으로만 기록한다. **어댑터는 정형 2개 + 범용 1개에서 늘리지 않는다.**
 
 ## 기술 스택
 
@@ -24,6 +25,7 @@ Next.js (App Router, TypeScript) + Vercel + Supabase (Postgres, pgvector, Storag
 
 ## 작업 방식
 
-- 파서는 "공통 정규화 스키마 + 포맷별 어댑터" 구조를 유지한다. 포맷 전용 UI는 만들지 않는다.
+- 파서는 "공통 정규화 스키마 + 포맷별 어댑터" 구조를 유지한다. 분석 코드는 공통 스키마만 본다. 어댑터는 함수 하나(줄 배열 → 이벤트 배열)로 끝나야 하고, 포맷 전용 UI는 만들지 않는다.
+- 공통 스키마 이벤트: `{ role, ts?, text, toolCalls?, toolResults?, filesChanged?, source: { tool, fidelity: "structured" | "transcript" } }`.
 - 커밋 메시지는 `type: 요약` 형식(feat, fix, chore, docs, refactor).
 - 새 기능보다 엔드투엔드 1회전(업로드 → 포트폴리오 페이지)이 우선이다.
