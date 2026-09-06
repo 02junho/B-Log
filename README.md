@@ -36,10 +36,13 @@ Build-Log라는 이름처럼, 도구가 아니라 **빌드 과정**이 주인공
 
 ## 기술 스택
 
-- Next.js (App Router, TypeScript) · Vercel
-- Supabase (Postgres + pgvector + Storage + GitHub OAuth)
+- Next.js 16 (App Router, TypeScript, Tailwind v4) · Vercel
+- Supabase (Postgres + Storage + GitHub OAuth, `@supabase/ssr`)
+- LLM: Vercel AI SDK로 추상화. 메인 모델은 Upstage Solar Pro 4 vs Claude Sonnet 5 비교 후 결정
+- 커밋↔대화 매칭: 로그 안의 커밋 호출 → 타임스탬프 → 임베딩 유사도 순 (pgvector는 필요 시 추가)
 - GitHub REST API (Octokit)
-- LLM: 결정 예정 (Claude API vs Upstage Solar 비교 후)
+
+자세한 설계 근거와 무료 티어 제약은 [CLAUDE.md](CLAUDE.md)에 있습니다.
 
 ## 사용한 AI 도구
 

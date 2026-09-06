@@ -19,9 +19,22 @@ AI 코딩 세션 로그와 Git 커밋을 분석해 "AI를 어떻게 지휘했는
 - In: 입력 입구 3개 — ①Claude Code JSONL 어댑터(1순위) ②Codex rollout JSONL 어댑터 ③범용 대화록(텍스트/마크다운/내보내기 파일을 LLM으로 공통 스키마에 구조화). GitHub 공개 레포 연결, 4단계 태깅(문제 정의 → AI 지시 → 근거 탐색·의사결정 → 실패·복구), 커밋↔대화 매칭, 하이라이트 3~5개(원문 인용), 정규식+LLM 2단계 마스킹, 분석 등급 배지(정밀/요약), 공개 포트폴리오 페이지, GitHub OAuth.
 - Out: Cursor/Gemini CLI/Cline/Aider 등 추가 어댑터, 팀 분석, PDF 내보내기, 실시간 연동, 다국어. 요청이 와도 "확장 로드맵"으로만 기록한다. **어댑터는 정형 2개 + 범용 1개에서 늘리지 않는다.**
 
-## 기술 스택
+## 기술 스택 (2026-09-06 재검토 반영)
 
-Next.js (App Router, TypeScript) + Vercel + Supabase (Postgres, pgvector, Storage, Auth). 커밋 연동은 Octokit. 긴 세션은 잡 테이블 + 청크 단위 처리로 서버리스 타임아웃을 피한다.
+- **프레임워크·배포**: Next.js 16 (App Router, TypeScript, Tailwind v4, `src/`) + Vercel Hobby. Next 16은 학습 데이터와 다르니 코드 작성 전 `node_modules/next/dist/docs/`를 먼저 읽는다.
+- **데이터**: Supabase Free (Postgres, Storage, Auth). 마이그레이션은 Supabase CLI SQL 파일을 레포에 커밋하고 `supabase gen types`로 타입 생성. ORM은 쓰지 않는다.
+- **인증**: Supabase GitHub OAuth. App Router 쿠키 세션은 `@supabase/ssr`로 처리한다(기본 `supabase-js`만으로는 서버 컴포넌트에서 세션이 안 잡힘).
+- **LLM 호출**: Vercel AI SDK(`ai` + `@ai-sdk/anthropic` + `@ai-sdk/openai-compatible`)로 추상화한다. 파이프라인 코드는 provider를 모른다. 구조화 출력은 zod 스키마로 강제한다. 메인 모델은 Step 4에서 Upstage Solar Pro 4 vs Claude Sonnet 5를 같은 청크로 비교 후 결정(Opus는 과함). 임베딩은 LLM과 별개로 정한다(Anthropic은 임베딩 없음 → Upstage `solar-embedding-1-large` 또는 OpenAI).
+- **커밋↔대화 매칭 3단계**: ①로그 안의 git commit 도구 호출로 정확 매칭 → ②타임스탬프 창 → ③임베딩 코사인 유사도(대화록 등급 전용). 임베딩은 인메모리로 계산하고, **pgvector는 ③이 실제로 필요해질 때만** 컬럼 추가.
+- **긴 세션 처리**: 잡 테이블 + 청크 병렬 태깅(동시성 제한)으로 Vercel 함수 한도 300초 안에 끝낸다. 넘치면 자기 자신을 다시 호출하는 체인. Inngest 등 큐 서비스는 실측에서 넘칠 때만 붙인다.
+- **커밋 연동**: Octokit(GitHub REST, 공개 레포). `GITHUB_TOKEN`은 rate limit 완화용.
+- **UI**: shadcn/ui. OG 이미지는 Next 내장 `opengraph-image.tsx`.
+
+### 무료 티어 제약 (설계에 반영됨)
+
+- Vercel Hobby: 함수 최대 300초(고정). Cron은 하루 1회만 → 심사 기간 슬립 방지는 UptimeRobot이 `/api/health`를 5분마다 호출.
+- Supabase Free: **DB 쿼리가 7일간 없으면 프로젝트 일시정지**(대시보드 방문·캐시 응답은 활동 아님). `/api/health`는 반드시 실제 테이블(`heartbeat`)을 조회한다. 500MB DB, 1GB Storage.
+- LLM 비용: 투표 기간(9/21~10/5)에는 일일 분석 횟수 상한 + 데모 3종 결과 캐싱.
 
 ## 작업 방식
 
