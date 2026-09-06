@@ -1,0 +1,18 @@
+# secrets
+.env*
+!.env.example
+
+# dependencies
+node_modules/
+
+# build / deploy
+.next/
+out/
+.vercel
+
+# session logs (demo data lives outside the repo)
+*.jsonl
+
+# misc
+.DS_Store
+*.log
