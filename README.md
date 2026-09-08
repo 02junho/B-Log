@@ -7,7 +7,7 @@ B-Log는 세션 로그와 Git 커밋을 함께 분석해 **문제 정의 → AI 
 
 Build-Log라는 이름처럼, 도구가 아니라 **빌드 과정**이 주인공입니다. 모든 입력은 B-Log 공통 세션 스키마로 정규화된 뒤 같은 분석 파이프라인을 탑니다.
 
-📋 단계별 진행 상황: [docs/ROADMAP.md](docs/ROADMAP.md)
+📋 단계별 진행 상황: [docs/ROADMAP.md](docs/ROADMAP.md) · 👥 4인 역할 분담·일정: [docs/TEAM_PLAN.md](docs/TEAM_PLAN.md)
 
 ## 대회
 
