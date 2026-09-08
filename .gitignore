@@ -20,6 +20,7 @@ next-env.d.ts
 
 # testing
 /coverage
+/.test-dist/
 
 # session logs (demo data lives outside the repo)
 *.jsonl

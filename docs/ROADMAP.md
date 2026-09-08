@@ -10,7 +10,7 @@
 | --- | --- | --- | --- |
 | 1 | 레포 · 첫 커밋 · 세션 로그 보존 | 9/4 | ✅ |
 | 2 | 배포 골격 (Next.js → Vercel → Supabase) | 9/5 | ✅ (9/6 완료) |
-| 3 | 파서 스파이크 (최대 리스크 먼저) | 9/6~9/7 | ⏳ 다음 |
+| 3 | 파서 스파이크 (최대 리스크 먼저) | 9/6~9/7 | 🔄 Codex 어댑터 완료, 공통 연결·Claude 예정 |
 | 4 | LLM 모델 · 프롬프트 v1 결정 | 9/7 | ⏳ |
 | 5 | 데이터 모델 · 업로드 · 잡 파이프라인 | 9/8~9/9 | ⏳ |
 | 6 | 4단계 태깅 · 커밋 매칭 · 하이라이트 | 9/10~9/11 | ⏳ |
@@ -74,9 +74,27 @@
 
 ---
 
-## Step 3. 파서 스파이크 ⏳ (9/6~9/7)
+## Step 3. 파서 스파이크 🔄 (역할 B: 9/8 완료)
 
 **목표** 실제 세션 로그가 공통 스키마로 정확히 파싱되는지 UI보다 먼저 검증한다. 여기서 안 되면 나머지가 다 무너진다.
+
+**역할 B 완료 (Codex)**
+- 담당: [@Aio1135](https://github.com/Aio1135) — Codex rollout 어댑터·fixture 테스트·실로그 검증.
+- `src/lib/parsers/schema.ts`: 문서의 공통 이벤트와 줄 배열 → 이벤트 배열 타입 정의.
+- `src/lib/parsers/codex.ts`: response_item 기반 발화 복원, function/custom 도구
+  호출·결과 ID 보존, 시스템·reasoning 제외, event_msg 중복 방지.
+- git commit 입력·출력을 보존하고, 직접 apply_patch 성공 결과의 변경 경로 추출.
+  실패·미완료 패치는 변경으로 기록하지 않음. 중첩 스크립트는 보존하되 파일 변경을 추정하지 않음.
+- `tests/fixtures/`: 실제 B-Log 세션의 레코드 구조를 확인해 작성한 합성 JSON 입력과
+  기대 정규화 출력. 실제 세션 원문·JSONL·개인정보는 포함하지 않음.
+- `npm test`: snapshot, 병렬·고아 도구 결과, 실패 패치, BOM/손상 JSON 등 회귀 검증.
+  `BLOG_CODEX_LOG`로 개인 프로젝트 실로그 검증을 별도 실행 가능.
+- 검증 결과 (9/8): 합성 회귀 테스트 12개 + 이번 B-Log 실제 rollout 검증 1개,
+  총 13개 통과. `npm run lint`, `npm run typecheck`, `git diff --check` 통과.
+
+**남은 작업** Claude Code 어댑터, 공통 CLI/자동 판별, 정규식 마스킹, 두 형식의
+통합 스파이크. 새 TEAM_PLAN §3.1의 BLogEvent/BLogSession 계약과 현재
+NormalizedEvent 타입·경로를 합치는 작업도 P1과 진행해야 한다. 따라서 Step 3 전체는 아직 완료가 아님.
 
 **할 일**
 - `scripts/parse-session.ts`: 공통 정규화 스키마 + 포맷별 어댑터 구조.

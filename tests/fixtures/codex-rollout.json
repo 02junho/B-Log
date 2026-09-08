@@ -1,0 +1,22 @@
+[
+  {"timestamp":"2026-09-08T00:00:00Z","type":"session_meta","payload":{"id":"fixture-session","cwd":"/demo","instructions":"SYSTEM_SENTINEL"}},
+  {"type":"turn_context","payload":{"developer_instructions":"SYSTEM_SENTINEL"}},
+  {"type":"response_item","payload":{"type":"message","role":"developer","content":[{"type":"input_text","text":"SYSTEM_SENTINEL"}]}},
+  {"type":"response_item","payload":{"type":"message","role":"system","content":[{"type":"input_text","text":"SYSTEM_SENTINEL"}]}},
+  {"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"# AGENTS.md instructions for /demo\nSYSTEM_SENTINEL"}]}},
+  {"timestamp":"2026-09-08T00:00:01Z","type":"event_msg","payload":{"type":"user_message","message":"버그를 고쳐줘."}},
+  {"timestamp":"2026-09-08T00:00:01Z","type":"response_item","payload":{"type":"message","id":"msg-user","role":"user","content":[{"type":"input_text","text":"버그를 고쳐줘."},{"type":"input_image","image_url":"IMAGE_SENTINEL"}]}},
+  {"type":"response_item","payload":{"type":"reasoning","summary":[{"type":"summary_text","text":"REASONING_SENTINEL"}],"encrypted_content":"ENCRYPTED_SENTINEL"}},
+  {"type":"response_item","payload":{"type":"message","role":"assistant","channel":"analysis","content":[{"type":"output_text","text":"REASONING_SENTINEL"}]}},
+  {"timestamp":"2026-09-08T00:00:02Z","type":"response_item","payload":{"type":"message","role":"assistant","phase":"commentary","content":[{"type":"output_text","text":"원인을 확인하겠습니다."},{"type":"output_text","text":"테스트도 실행하겠습니다."}]}},
+  {"type":"event_msg","payload":{"type":"agent_message","message":"원인을 확인하겠습니다.\n테스트도 실행하겠습니다."}},
+  {"timestamp":"2026-09-08T00:00:03Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"call-commit","arguments":"{\"cmd\":\"git commit -m 'fix: 예외 처리'\",\"workdir\":\"/demo\"}"}},
+  {"timestamp":"2026-09-08T00:00:04Z","type":"response_item","payload":{"type":"function_call_output","call_id":"call-commit","output":"Process exited with code 0\n[main abc1234] fix: 예외 처리"}},
+  {"timestamp":"2026-09-08T00:00:05Z","type":"response_item","payload":{"type":"custom_tool_call","id":"item-patch","status":"completed","call_id":"call-patch","name":"apply_patch","input":"*** Begin Patch\n*** Update File: src/example.ts\n@@\n-old\n+new\n*** End Patch","internal_chat_message_metadata_passthrough":{}}},
+  {"type":"event_msg","payload":{"type":"item_completed","item":{"type":"custom_tool_call","call_id":"call-patch"}}},
+  {"timestamp":"2026-09-08T00:00:06Z","type":"response_item","payload":{"type":"custom_tool_call_output","id":"item-output","call_id":"call-patch","output":"Success. Updated the following files:\nM src/example.ts\nA tests/example.test.ts\nD src/old.ts\n","internal_chat_message_metadata_passthrough":{}}},
+  {"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"total_tokens":100}}}},
+  {"type":"token_usage_record","payload":{"total_tokens":100}},
+  {"type":"world_state","payload":{}},
+  {"timestamp":"2026-09-08T00:00:07Z","type":"response_item","payload":{"type":"message","role":"assistant","phase":"final_answer","content":[{"type":"output_text","text":"수정과 검증을 완료했습니다."}]}}
+]
