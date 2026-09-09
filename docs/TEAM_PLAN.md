@@ -196,6 +196,19 @@ type PortfolioView = {
 
 **절대 안 빼는 것**: Claude Code 어댑터, 4단계 태깅, 하이라이트(원문 인용), 공개 페이지, 정규식 마스킹, 데모 3종, 헬스체크.
 
+## 6.5 Git 브랜치 규칙 (9/9 확정)
+
+main만 프로덕션에 배포되므로 **main은 항상 배포 가능한 상태**여야 한다. 그래서:
+
+- **main에 직접 푸시 금지.** 모든 작업은 브랜치 → PR → 준호가 머지. (예외: 준호의 `docs/` 단독 수정은 직접 커밋 허용)
+- **브랜치 이름**: `feat/p{역할}-{주제}` (예: `feat/p2-upload-api`, `feat/p3-landing`). 버그픽스는 `fix/`, 문서는 `docs/`.
+- **브랜치는 그날 만들고 그날(늦어도 다음 날) PR.** 오래 사는 브랜치 금지 — 소유 폴더가 갈라져 있어 충돌은 드물지만, 늦게 합칠수록 `schema.ts` 같은 계약 변경과 어긋난다.
+- **PR은 작게, 소유 폴더 안에서.** 다른 역할의 폴더를 고쳐야 하면 PR 설명에 멘션하고 저녁 싱크에서 말한다.
+- **시작 전 `git pull origin main`, PR 전 rebase**(`git rebase origin/main`). 머지 후 브랜치 삭제.
+- **계약 파일(`src/lib/parser/schema.ts`, `PortfolioView`, DB 마이그레이션, API 경로)을 바꾸는 PR은 제목에 `[계약]`**을 달고, 머지 전에 영향받는 역할의 확인을 받는다.
+- PR에서 CI(`no-ai-coauthor`)가 실패하면 해당 커밋 메시지에서 AI 트레일러를 지우고 다시 푸시.
+- Vercel이 PR마다 Preview 배포 URL을 달아준다. 프론트 PR은 그 URL로 확인. (Preview에도 Supabase 환경변수가 들어가 있음)
+
 ## 7. 오늘(9/8) 각자 체크리스트
 
 **전원**
