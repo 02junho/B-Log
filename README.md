@@ -30,39 +30,94 @@ Build-Log라는 이름처럼, 도구가 아니라 **빌드 과정**이 주인공
 | Codex CLI 어댑터 | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` | 정밀 분석 |
 | 범용 대화록 | 텍스트 · 마크다운 붙여넣기, ChatGPT 등 내보내기 파일 | 요약 분석 (태깅 · 하이라이트 · 마스킹은 동일, 커밋 매칭은 텍스트 유사도만) |
 
-- 형식 자동 판별과 범용 대화록 연결은 구현 예정입니다.
+- 정형 로그 2종의 어댑터와 형식 자동 판별은 구현됐습니다. 범용 대화록 입구는 구현 예정입니다.
 - 포트폴리오 페이지에는 **분석 등급 배지**를 표시합니다. 정형 로그를 주면 더 정밀해진다는 것을 숨기지 않습니다.
-- 어댑터 인터페이스는 함수 하나(줄 배열 → 이벤트 배열)입니다. 다른 도구는 커뮤니티가 추가할 수 있도록 인터페이스 문서를 공개합니다.
+- 어댑터 인터페이스는 함수 하나(줄 배열 → `BLogSession`)입니다. 다른 도구는 커뮤니티가 추가할 수 있도록 인터페이스 문서를 공개합니다.
 
 **확장 로드맵 (이번 MVP 제외)**: Cursor · Gemini CLI · Cline · Aider 어댑터, 팀 단위 분석, PDF 내보내기, 실시간 연동, 다국어.
 
-## Codex 어댑터 (역할 B)
+## 파서 (공통 스키마 + 어댑터)
 
-담당: [@Aio1135](https://github.com/Aio1135). 9/8 어댑터·fixture 구현 및 실제 로그
-검증 완료. Claude Code 어댑터와 공통 CLI/파이프라인 연결은 후속 작업입니다.
-
-`src/lib/parsers/codex.ts`의 `parseCodex(lines)`가 rollout JSONL의 줄 배열을
-`src/lib/parsers/schema.ts`의 `NormalizedEvent[]`로 변환합니다. 분석 코드는 이
-공통 타입만 사용합니다. 파일 읽기, 형식 판별, 마스킹은 어댑터 밖에서 처리합니다.
+모든 입구는 `src/lib/parser/schema.ts`의 **`BLogSession`** 하나로 정규화됩니다.
+분석 코드는 이 타입만 보고, 어떤 도구의 로그였는지는 `source`로만 압니다.
 
 ```ts
-import { parseCodex } from "@/lib/parsers/codex";
+import { parseSession, detectFormat } from "@/lib/parser";
 
-const events = parseCodex(contents.split(/\r?\n/));
+const lines = contents.split(/\r?\n/);
+const session = parseSession(lines);          // 형식 자동 판별
+const codex = parseSession(lines, "codex");   // 형식 강제
 ```
 
-- `response_item`의 사용자·AI 메시지를 파일 순서대로 복원합니다. 시스템·개발자
-  메시지, 알려진 AGENTS/환경 지침 메시지, reasoning/analysis는 제외합니다.
-- `event_msg`는 중복 방지를 위해 제외합니다. `response_item`이 없는 로그는 지원하지 않습니다.
-- function/custom 도구 호출과 결과는 `toolCalls[].id` ↔ `toolResults[].callId`로
-  연결합니다. 병렬 호출, 결과 없는 호출, 호출 없는 결과도 원래 순서와 ID를 보존합니다.
-- `git commit` 명령과 출력은 도구 입력·결과에 남깁니다. 커밋 매칭 알고리즘은 후속 작업입니다.
-- `filesChanged`에는 직접 호출한 `apply_patch`의 성공 보고에 있는 경로만 넣습니다.
-  셸·JavaScript 내부의 파일 쓰기는 추정하지 않습니다. 중첩 도구 스크립트는 원문 입력으로 보존합니다.
-- 빈 줄·BOM·알 수 없는 레코드는 허용합니다. 손상된 JSON은 원문 없이 줄 번호로 오류를 냅니다.
-  알려진 레코드의 필수 필드가 없으면 건너뜁니다. 텍스트 블록만 추출하고 이미지 데이터는 제외합니다.
+| 파일 | 역할 |
+| --- | --- |
+| `src/lib/parser/schema.ts` | 공통 타입 `BLogSession` · `BLogEvent` (TEAM_PLAN §3.1 계약) |
+| `src/lib/parser/detect.ts` | 첫 30줄의 레코드 타입으로 입구 판별 |
+| `src/lib/parser/adapters/claude-code.ts` | Claude Code JSONL 어댑터 |
+| `src/lib/parser/adapters/codex.ts` | Codex rollout JSONL 어댑터 |
+| `src/lib/parser/git.ts` | 로그 안의 커밋 확정 추출 (커밋 매칭 1단계) |
+| `src/lib/parser/stats.ts` | 이벤트·도구·커밋 통계 (`PortfolioView.stats` 재료) |
 
-검증 명령:
+어댑터 인터페이스는 함수 하나입니다: `(lines: string[]) => BLogSession`.
+파일 읽기, 형식 판별, 마스킹은 어댑터 밖에서 처리합니다. 범용 대화록 입구는
+LLM 구조화가 필요해서 이 동기 경로 밖에 있고, 아직 연결 전입니다. 판별에
+실패한 파일은 절반만 파싱하지 않고 오류를 냅니다.
+
+### CLI
+
+```sh
+npm run parse -- <로그 파일> --stats                    # 원문 없이 통계만
+npm run parse -- <로그 파일> --out .parsed/session.json  # 정규화 JSON 파일로
+npm run parse -- <로그 파일> --format codex             # 자동 판별 대신 강제
+```
+
+출력은 **정규화만 된 상태이고 마스킹 전**입니다. 세션 원문과 같은 취급을 하세요.
+`--out`은 `.parsed/`(gitignore됨) 또는 레포 밖 경로로 쓰고, 공유하지 마세요.
+판별에 실패하면 절반만 파싱하지 않고 오류를 냅니다.
+
+### 두 어댑터의 공통 규칙
+
+- 사용자·AI 발화를 파일 순서대로 복원하고, 이벤트마다 세션 내 순번 ID(`e0001`)를 붙입니다.
+- 도구 호출과 결과는 `toolCalls[].id` ↔ `toolResults[].callId`로 연결합니다.
+  병렬 호출, 결과 없는 호출, 호출 없는 결과도 원래 순서와 ID를 보존합니다.
+- 모델의 내부 사고(Claude Code `thinking`, Codex `reasoning`/analysis)는 제외합니다.
+  협업 기록이 아니라 초안이기 때문입니다.
+- `filesChanged`는 **성공한 쓰기 도구의 보고**에만 채웁니다. 셸 명령 안의 파일 쓰기는 추정하지 않습니다.
+- `gitCommit`은 git 자신이 확인해 준 경우에만 기록합니다(호스트가 준 sha 또는 `[branch sha]` 보고).
+  훅에 막힌 커밋, 스테이지가 빈 커밋, `git log` 같은 조회 명령은 커밋이 되지 않습니다.
+- 실패한 도구 결과는 `isError`로 표시합니다. 4단계 태깅의 "실패·복구" 입구입니다.
+- 빈 줄·BOM·알 수 없는 레코드는 허용합니다. 손상된 JSON은 원문 없이 줄 번호로 오류를 냅니다.
+  텍스트 블록만 추출하고 이미지 데이터는 제외합니다.
+
+### Claude Code 어댑터
+
+`user`·`assistant` 레코드만 대화로 취급합니다. `attachment`, `system`,
+`queue-operation`, 각종 title 레코드 등 호스트 기록은 무시하며, 모르는 타입도
+같은 방식으로 넘어갑니다(전방 호환).
+
+- 슬래시 명령 반향(`<command-name>` 등), 호스트 알림, `isMeta` 레코드는 사용자 발화가 아니므로 제외합니다.
+- `<system-reminder>` 블록은 발화와 도구 결과 양쪽에서 제거합니다. 호스트가 모델에게
+  주입한 지시라서, 그대로 두면 태깅 프롬프트에 남의 지시가 섞입니다.
+- 서브에이전트 대화(`isSidechain`)는 제외합니다. 메인 스레드에 호출과 결과가 남습니다.
+- `filesChanged`는 Edit·MultiEdit·Write·NotebookEdit 결과의 `filePath`만 사용합니다. Read는 제외합니다.
+- 한 레코드에 결과가 여러 개면 `toolUseResult`를 특정 결과에 귀속할 수 없으므로
+  파일 변경·커밋을 주장하지 않습니다.
+
+### Codex 어댑터 (역할 B)
+
+담당: [@Aio1135](https://github.com/Aio1135). 9/8 어댑터·fixture 구현 및 실제 로그 검증.
+9/9에 공통 스키마·CLI로 통합했습니다.
+
+- `response_item`이 기준입니다. `event_msg`는 중복 방지를 위해 제외하고,
+  `response_item`이 없는 로그는 지원하지 않습니다.
+- 시스템·개발자 메시지, 알려진 AGENTS/환경 지침 메시지를 제외합니다.
+- `session_meta`에서 `cwd`와 세션 시작 시각을 가져옵니다.
+- `filesChanged`는 직접 호출한 `apply_patch`의 성공 보고 경로만 넣습니다.
+  중첩 스크립트는 원문 입력으로 보존하되 파일 변경을 추정하지 않습니다.
+- 도구 결과 블록은 `input_text` 타입입니다(모델의 다음 입력이라서). 세 타입 모두 읽습니다.
+- 중첩 스크립트 안의 `git commit`은 git의 `[branch sha]` 보고가 함께 있을 때만 커밋으로 인정합니다.
+
+## 검증
 
 ```sh
 npm ci
@@ -76,13 +131,16 @@ npm run typecheck
 실제 개인 프로젝트 로그를 원문 출력·저장 없이 추가 검증하려면 PowerShell에서:
 
 ```powershell
-$env:BLOG_CODEX_LOG = 'C:\private\rollout-example.jsonl'
+$env:BLOG_CLAUDE_LOG = 'C:\private\session-example.jsonl'
+$env:BLOG_CODEX_LOG  = 'C:\private\rollout-example.jsonl'
 npm test
-Remove-Item Env:BLOG_CODEX_LOG
+Remove-Item Env:BLOG_CLAUDE_LOG, Env:BLOG_CODEX_LOG
 ```
 
-로컬 검증은 사용자·AI 발화와 도구 호출·결과 쌍이 있는 세션을 대상으로 합니다.
-정규식/LLM 마스킹과 공개 전 검수는 아직 구현 전이므로 어댑터 출력은 공개용 데이터가 아닙니다.
+두 검사는 환경변수가 있을 때만 돌고, 실패해도 세션 원문을 출력하지 않도록
+불리언·개수만 단언합니다. 로컬 검증은 사용자·AI 발화와 도구 호출·결과 쌍이 있는
+세션을 대상으로 합니다. 정규식/LLM 마스킹과 공개 전 검수는 아직 구현 전이므로
+어댑터 출력은 공개용 데이터가 아닙니다.
 
 ## 기술 스택
 

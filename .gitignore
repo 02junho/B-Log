@@ -25,6 +25,9 @@ next-env.d.ts
 # session logs (demo data lives outside the repo)
 *.jsonl
 
+# normalized sessions from `npm run parse` — derived log content, not masked
+/.parsed/
+
 # misc
 .DS_Store
 npm-debug.log*

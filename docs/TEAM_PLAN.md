@@ -5,7 +5,7 @@
 
 ## 0. 전제
 
-- 현재 위치 (9/8 갱신): Step 1·2 완료. **Step 3은 Codex 어댑터·fixture 검증 완료, 공통 연결·Claude Code 어댑터 예정**이며 Step 4(모델 결정)는 미착수다. 4명이 병렬로 붙어 9/12까지 따라잡는다.
+- 현재 위치 (9/9 갱신): Step 1·2·3 완료. **파서는 공통 스키마 `BLogSession` 하나로 통합됐고 Claude Code·Codex 어댑터와 CLI가 돈다**(§3.1은 이제 코드와 일치). Step 4(모델 결정)와 Step 5(데이터·업로드)는 미착수다. 4명이 병렬로 붙어 9/12까지 따라잡는다.
 - 4개 역할은 **서로 다른 폴더를 소유**한다. 겹치는 부분은 9/8 킥오프에서 정하는 "계약(§3)"으로만 연결한다. 계약이 정해지면 각자 상대를 기다리지 않고 진행할 수 있다.
 - 전원 AI 코딩 도구(Claude Code 또는 Codex)로 개발하고 세션 로그를 보존한다. 4명의 로그 전부가 메타 데모(데모 ①)의 재료다.
 
@@ -29,9 +29,10 @@ P2~P4의 전체 역할을 배정한 의미는 아니다.
   `tests/codex.test.ts`, 합성 입력·기대 출력 fixture, README·ROADMAP 갱신.
 - 검증: 합성 테스트 12개와 실제 B-Log rollout 검증 1개 통과. pull 후 합성 테스트
   12개와 타입 검사 재통과(선택 실행하는 실제 로그 검증은 재실행하지 않음).
-- P1 합류 시 남은 일: 현재 `src/lib/parsers/schema.ts`의 `NormalizedEvent` 구현을 아래 §3.1의
-  `src/lib/parser/`·`BLogEvent`/`BLogSession` 계약과 통합하고 CLI/자동 판별에 연결한다.
-  현재 타입은 이벤트별 source와 도구 호출 ID를 보존하며, §3.1 계약과 아직 동일하지 않다.
+- 통합 완료 (9/9, P1): `src/lib/parsers/`의 `NormalizedEvent` 구현을 §3.1의
+  `src/lib/parser/`·`BLogEvent`/`BLogSession` 계약으로 합치고 CLI·자동 판별에 연결했다.
+  도구 호출 ID 짝은 계약 쪽으로 흡수했다(§3.1 참고). 이후 Codex 어댑터는
+  `src/lib/parser/adapters/codex.ts`에 있고, 회귀 테스트는 그대로 유지된다.
 
 ```
 P1 파서·태깅 ──▶ P2 저장·잡·매칭 ──▶ P3 페이지 렌더
@@ -43,7 +44,7 @@ P1 파서·태깅 ──▶ P2 저장·잡·매칭 ──▶ P3 페이지 렌더
 
 - **산출물**
   - `src/lib/parser/schema.ts` 공통 스키마(`BLogEvent`, zod) — **9/8 안에 확정**
-  - `src/lib/parser/adapters/claude-code.ts`, `codex.ts`, `transcript.ts`(LLM 구조화) + `detect.ts`(첫 줄로 형식 판별)
+  - `src/lib/parser/adapters/claude-code.ts`, `codex.ts`, `transcript.ts`(LLM 구조화) + `detect.ts`(앞부분 레코드 타입으로 형식 판별)
   - `src/lib/pipeline/chunk.ts`(청킹), `tag.ts`(AI SDK로 4단계 태깅, provider 무관), `highlight.ts`(P4 프롬프트 사용)
   - `scripts/parse-session.ts` CLI: 로그 파일 → 정규화 JSON. Step 3 산출물이자 P4 평가 입력
 - **완료 기준**: 본인 Claude Code 로그와 Codex 로그 각 1개가 CLI로 정규화되고(9/9), 태깅까지 CLI로 끝까지 돈다(9/12)
@@ -107,18 +108,23 @@ P1 파서·태깅 ──▶ P2 저장·잡·매칭 ──▶ P3 페이지 렌더
 
 ## 3. 계약 (9/8 킥오프에서 확정, 이후 변경은 저녁 싱크에서만)
 
-### 3.1 공통 스키마 `BLogEvent` (P1 소유)
+### 3.1 공통 스키마 `BLogEvent` (P1 소유) — 9/9 확정, `src/lib/parser/schema.ts`
+
+문서가 아니라 **코드가 계약의 원본**이다. 아래는 확정된 실제 정의다.
+초안과 달라진 곳은 두 군데뿐이고, 둘 다 역할 B의 Codex 어댑터에서 이미 검증된 정보다.
+① 도구 호출·결과를 `id` ↔ `callId`로 짝지어 병렬 호출을 구분한다(초안은 `name`뿐이라 구분 불가).
+② 실패한 도구 결과에 `isError`를 남긴다. 4단계 태깅의 "실패·복구" 입구다.
 
 ```ts
 type BLogEvent = {
-  id: string;                      // 세션 내 순번 기반
+  id: string;                      // 세션 내 순번 기반 ("e0001")
   role: "user" | "assistant" | "tool";
   ts?: string;                     // ISO. 대화록 등급은 없을 수 있음
   text: string;
-  toolCalls?: { name: string; input: unknown }[];
-  toolResults?: { name: string; output: string }[];
-  filesChanged?: string[];
-  gitCommit?: { sha?: string; message: string };   // 로그 안에서 커밋 호출을 발견했을 때 (매칭 1단계)
+  toolCalls?: { id: string; name: string; input: unknown }[];
+  toolResults?: { callId: string; output: string; isError?: boolean }[];
+  filesChanged?: string[];         // 성공한 쓰기 도구의 보고에서만
+  gitCommit?: { sha?: string; message: string };   // git이 확인해 준 커밋만 (매칭 1단계)
 };
 type BLogSession = {
   source: { tool: "claude-code" | "codex" | "transcript"; fidelity: "structured" | "transcript" };
@@ -126,7 +132,10 @@ type BLogSession = {
   startedAt?: string;
   events: BLogEvent[];
 };
+type SessionAdapter = (lines: readonly string[]) => BLogSession;
 ```
+
+`PortfolioView.stats`의 재료는 `src/lib/parser/stats.ts`의 `sessionStats(session)`가 계산한다.
 
 ### 3.2 DB 테이블 (P2 소유)
 

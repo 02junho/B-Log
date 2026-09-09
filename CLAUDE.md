@@ -38,7 +38,8 @@ AI 코딩 세션 로그와 Git 커밋을 분석해 "AI를 어떻게 지휘했는
 
 ## 작업 방식
 
-- 파서는 "공통 정규화 스키마 + 포맷별 어댑터" 구조를 유지한다. 분석 코드는 공통 스키마만 본다. 어댑터는 함수 하나(줄 배열 → 이벤트 배열)로 끝나야 하고, 포맷 전용 UI는 만들지 않는다.
-- 공통 스키마 이벤트: `{ role, ts?, text, toolCalls?, toolResults?, filesChanged?, source: { tool, fidelity: "structured" | "transcript" } }`.
+- 파서는 "공통 정규화 스키마 + 포맷별 어댑터" 구조를 유지한다. 분석 코드는 공통 스키마만 본다. 어댑터는 함수 하나(`(lines) => BLogSession`)로 끝나야 하고, 포맷 전용 UI는 만들지 않는다.
+- 공통 스키마의 원본은 문서가 아니라 **`src/lib/parser/schema.ts`의 코드**다. 세션은 `BLogSession { source: { tool, fidelity }, cwd?, startedAt?, events }`, 이벤트는 `BLogEvent { id, role, ts?, text, toolCalls?, toolResults?, filesChanged?, gitCommit? }`. 도구 호출과 결과는 `toolCalls[].id` ↔ `toolResults[].callId`로 짝짓는다. 스키마를 바꾸면 P2·P3·P4 전원에게 알린다.
+- 파서가 지키는 원칙: 추정하지 않는다. `filesChanged`는 성공한 쓰기 도구의 보고에만, `gitCommit`은 git이 확인해 준 커밋에만 채운다. 모델의 내부 사고(thinking·reasoning)와 호스트 주입 텍스트(`<system-reminder>`, 슬래시 명령 반향)는 공통 스키마에 넣지 않는다.
 - 커밋 메시지는 `type: 요약` 형식(feat, fix, chore, docs, refactor).
 - 새 기능보다 엔드투엔드 1회전(업로드 → 포트폴리오 페이지)이 우선이다.
