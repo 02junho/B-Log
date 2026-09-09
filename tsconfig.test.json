@@ -10,5 +10,9 @@
     "outDir": ".test-dist",
     "rootDir": "."
   },
-  "include": ["src/lib/parsers/**/*.ts", "tests/**/*.ts"]
+  "include": [
+    "src/lib/parser/**/*.ts",
+    "scripts/**/*.ts",
+    "tests/**/*.ts"
+  ]
 }
