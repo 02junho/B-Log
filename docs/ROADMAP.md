@@ -2,7 +2,7 @@
 
 > 마지막 갱신: 2026-09-09 (D-11). 단계가 끝날 때마다 이 문서를 갱신한다.
 > 상태 표기: ✅ 완료 · 🔄 진행 중 · ⏳ 예정 · ⚠️ 주의
-> ⚠️ 9/9 기준 Step 3·4 완료(모델: Upstage Solar Pro 4 단독). Step 5(데이터·업로드)부터 진행. 4인 병렬 분담과 날짜별 계획은 **[TEAM_PLAN.md](TEAM_PLAN.md)** 를 따른다(Step 4~7을 역할별로 동시 진행).
+> ⚠️ 9/9 저녁 기준: Step 3·4 완료, **Step 6의 P1 몫(태깅 엔진·PortfolioView·fixtures)도 선완료**(PR #3 머지). Step 5는 마이그레이션 초안까지 준비됨(PR #4, P2 검토 대기) — **업로드·잡 API(P2)가 현재 병목**, 9/12 API 엔드투엔드 마일스톤이 여기 걸려 있다. P3는 fixtures로 오늘부터 착수 가능. 분담·날짜별 계획은 **[TEAM_PLAN.md](TEAM_PLAN.md)**.
 
 ## 한눈에 보기
 
@@ -12,9 +12,9 @@
 | 2 | 배포 골격 (Next.js → Vercel → Supabase) | 9/5 | ✅ (9/6 완료) |
 | 3 | 파서 스파이크 (최대 리스크 먼저) | 9/6~9/7 | ✅ (9/9 완료. 마스킹은 Step 5로) |
 | 4 | LLM 모델 · 프롬프트 v1 결정 | 9/7 | ✅ (9/9 Solar 단독 확정) |
-| 5 | 데이터 모델 · 업로드 · 잡 파이프라인 | 9/8~9/9 | ⏳ |
-| 6 | 4단계 태깅 · 커밋 매칭 · 하이라이트 | 9/10~9/11 | ⏳ |
-| 7 | 포트폴리오 페이지 · 마스킹 · GitHub OAuth | 9/12~9/13 | ⏳ |
+| 5 | 데이터 모델 · 업로드 · 잡 파이프라인 | 9/8~9/9 | 🔄 (테이블 초안 PR #4 · 업로드·잡 API 미착수 ⚠️) |
+| 6 | 4단계 태깅 · 커밋 매칭 · 하이라이트 | 9/10~9/11 | 🔄 (P1 태깅 엔진·하이라이트 ✅ · 커밋 매칭 남음) |
+| 7 | 포트폴리오 페이지 · 마스킹 · GitHub OAuth | 9/12~9/13 | ⏳ (P3 fixtures 준비됨 — 착수 가능) |
 | — | **중간 점검: 엔드투엔드 1회전** | **9/14** | ⏳ |
 | 8 | 데모 3종 · 랜딩 · 모바일 · 스크린샷 | 9/15~9/16 | ⏳ |
 | 9 | 제출서 작성 · '제출' 상태로 가제출 | 9/17~9/18 | ⏳ |
@@ -142,24 +142,34 @@
 
 ---
 
-## Step 5. 데이터 모델 · 업로드 · 잡 파이프라인 ⏳ (9/8~9/9)
+## Step 5. 데이터 모델 · 업로드 · 잡 파이프라인 🔄 (기한 9/9 — 업로드·잡이 병목)
 
-**할 일**
-- 테이블: `projects`, `sessions`, `chunks`, `findings`, `portfolios`, `jobs`(상태·진행률). SQL 마이그레이션으로 커밋, `db:types`로 타입 생성.
-- 업로드 → Supabase Storage 저장 → 잡 생성 → 파싱·청킹 (Step 3 파서 재사용).
-- 입력 입구 3개: Claude Code 어댑터, Codex 어댑터, **범용 대화록**(텍스트·마크다운·내보내기 파일을 LLM으로 공통 스키마에 구조화). 자동 판별 실패 시 범용 경로로.
-- 긴 세션: 청크 병렬 태깅(동시성 제한)으로 Vercel 300초 안에 처리. 넘치면 자기 자신을 다시 호출하는 체인. 큐 서비스는 실측에서 넘칠 때만.
-- 마스킹 1차(정규식: 이메일·API 키·경로).
+**된 것 (9/9)**
+- 코어 테이블 마이그레이션 초안: `supabase/migrations/20260909000001_core_tables.sql` (**PR #4**, P1이 P2 병목 해소용으로 작성. DB 적용은 아직 안 함).
+  8테이블(projects/sessions/chunks/findings/commits/matches/portfolios/jobs), 전 테이블 RLS+정책 없음(service_role 전용), `findings.quote`는 jsonb `{eventId,text}`, 자식 CASCADE, `jobs.next_idx`로 체인 재개.
+- Vercel 환경변수 `UPSTAGE_API_KEY` 등록·재배포 완료 → 잡 라우트가 프로덕션에서 LLM 호출 가능.
+
+**남은 것 (P2)**
+- PR #4 검토(sessions.status·jobs.kind 어휘 확인) → 머지 → `npm run db:push` → `npm run db:types`.
+- 업로드 → Storage 저장 → 잡 생성 → 파싱·청킹 API (`POST /api/upload`, `GET /api/jobs/[id]`, `POST /api/jobs/[id]/run`).
+- 범용 대화록 입구(LLM 구조화), 마스킹 1차(정규식) — 컷 후보이므로 업로드·잡보다 뒤.
 
 ---
 
-## Step 6. 4단계 태깅 · 커밋 매칭 · 하이라이트 ⏳ (9/10~9/11)
+## Step 6. 4단계 태깅 · 커밋 매칭 · 하이라이트 🔄 (P1 몫 완료 9/9)
 
-**할 일**
-- 4단계 태깅 프롬프트 완성(few-shot), 하이라이트 3~5개 추출(원문 인용 스팬 보존).
-- 커밋↔대화 매칭 3단계: ①로그 안의 git commit 도구 호출(정확) → ②타임스탬프 창 → ③임베딩 유사도(대화록 등급). pgvector는 ③이 실제로 필요할 때만.
-- GitHub 공개 레포 커밋 조회(Octokit).
-- 분석 등급 배지: 정형 로그 = "정밀 분석", 대화록 = "요약 분석".
+**된 것 (PR #3 [계약], 머지됨)**
+- **태깅 엔진** `src/lib/pipeline/tag.ts`: 청크 병렬(동시성 4~6), JSON 모드+1회 재시도, **미검증 인용 자동 제외**(원문에 그대로 없는 quote는 저장 전에 버림), runner 주입으로 네트워크 없이 테스트.
+- **PortfolioView 계약 코드화** `src/lib/portfolio/view.ts`: stage 어휘를 DB와 통일(`instruction`→`instruct`), `stats.byRole` 추가("AI 기여/인간 개입" 화면 재료), commit.url 빈 문자열 규칙 명문화.
+- **빌더** `src/lib/portfolio/build.ts`: findings→요약·타임라인·하이라이트 조립(결정적). 하이라이트 5개는 단계 다양성 우선.
+- **전체 파이프라인 CLI** `npm run portfolio -- <로그>`: 로그→PortfolioView JSON. 데모 3종 생산 도구. 출력은 `.parsed/`(마스킹 전, 커밋 금지).
+- **P3 fixtures** `fixtures/portfolio.sample.json`(합성 데이터) + 계약 검증 테스트. 테스트 총 48개 통과.
+- 실측(메타 데모 후보 세션): 42청크 실패 0, 검증 findings 102개(미검증 66 제외), 82초, $0.045/세션.
+
+**남은 것**
+- 커밋↔대화 매칭 2단계(타임스탬프 창) 구현 — P2. (1단계는 파서가 이미 함. 알려진 한계: `git commit -q`는 git 보고가 없어 1단계에 안 잡힘 → 2단계가 보완)
+- GitHub 공개 레포 커밋 조회(Octokit) — P2.
+- 태깅 프롬프트 개선(인용 검증율 50~77% ↑) — P4, `npm run eval:models`로 전후 비교.
 
 ---
 
