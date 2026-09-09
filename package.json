@@ -10,16 +10,21 @@
     "test": "tsc -p tsconfig.test.json && node --test .test-dist/tests/*.test.js",
     "typecheck": "next typegen && tsc --noEmit",
     "prepare": "git config core.hooksPath .githooks || true",
+    "eval:models": "tsc -p tsconfig.test.json && node --env-file=.env.local .test-dist/scripts/eval/compare-models.js",
     "db:link": "supabase link --project-ref btjxwvapcycfzaskxhfn",
     "db:push": "supabase db push",
     "db:types": "supabase gen types typescript --linked --schema public > src/lib/supabase/database.types.ts",
     "parse": "tsc -p tsconfig.test.json && node .test-dist/scripts/parse-session.js"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.50",
+    "@ai-sdk/openai-compatible": "^3.0.45",
     "@supabase/supabase-js": "^2.115.0",
+    "ai": "^7.0.94",
     "next": "16.3.4",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

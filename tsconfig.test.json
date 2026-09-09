@@ -12,6 +12,8 @@
   },
   "include": [
     "src/lib/parser/**/*.ts",
+    "src/lib/pipeline/**/*.ts",
+    "src/lib/prompts/**/*.ts",
     "scripts/**/*.ts",
     "tests/**/*.ts"
   ]
