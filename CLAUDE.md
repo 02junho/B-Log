@@ -24,7 +24,7 @@ AI 코딩 세션 로그와 Git 커밋을 분석해 "AI를 어떻게 지휘했는
 - **프레임워크·배포**: Next.js 16 (App Router, TypeScript, Tailwind v4, `src/`) + Vercel Hobby. Next 16은 학습 데이터와 다르니 코드 작성 전 `node_modules/next/dist/docs/`를 먼저 읽는다.
 - **데이터**: Supabase Free (Postgres, Storage, Auth). 마이그레이션은 Supabase CLI SQL 파일을 레포에 커밋하고 `supabase gen types`로 타입 생성. ORM은 쓰지 않는다.
 - **인증**: Supabase GitHub OAuth. App Router 쿠키 세션은 `@supabase/ssr`로 처리한다(기본 `supabase-js`만으로는 서버 컴포넌트에서 세션이 안 잡힘).
-- **LLM 호출**: Vercel AI SDK(`ai` + `@ai-sdk/anthropic` + `@ai-sdk/openai-compatible`)로 추상화한다. 파이프라인 코드는 provider를 모른다. 구조화 출력은 zod 스키마로 강제한다. 메인 모델은 Step 4에서 Upstage Solar Pro 4 vs Claude Sonnet 5를 같은 청크로 비교 후 결정(Opus는 과함). 임베딩은 LLM과 별개로 정한다(Anthropic은 임베딩 없음 → Upstage `solar-embedding-1-large` 또는 OpenAI).
+- **LLM 호출**: **Upstage Solar Pro 4 단독** (2026-09-09 확정 — Anthropic API는 쓰지 않는다). Vercel AI SDK(`ai` + `@ai-sdk/openai-compatible`)로 추상화하고 파이프라인 코드는 provider를 모른다. 태깅은 JSON 모드(`generateObject` + zod) + 실패 시 1회 재시도가 프로덕션 경로다. 검증 안 된 인용(원문에 그대로 없는 quote)은 자동 제외한다. 임베딩도 Upstage `solar-embedding-1-large`로 단일화. 프롬프트 변경은 `npm run eval:models`로 전후 지표(유효율·인용 검증율)를 비교하고 반영한다.
 - **커밋↔대화 매칭 3단계**: ①로그 안의 git commit 도구 호출로 정확 매칭 → ②타임스탬프 창 → ③임베딩 코사인 유사도(대화록 등급 전용). 임베딩은 인메모리로 계산하고, **pgvector는 ③이 실제로 필요해질 때만** 컬럼 추가.
 - **긴 세션 처리**: 잡 테이블 + 청크 병렬 태깅(동시성 제한)으로 Vercel 함수 한도 300초 안에 끝낸다. 넘치면 자기 자신을 다시 호출하는 체인. Inngest 등 큐 서비스는 실측에서 넘칠 때만 붙인다.
 - **커밋 연동**: Octokit(GitHub REST, 공개 레포). `GITHUB_TOKEN`은 rate limit 완화용.
