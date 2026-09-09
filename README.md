@@ -146,7 +146,7 @@ Remove-Item Env:BLOG_CLAUDE_LOG, Env:BLOG_CODEX_LOG
 
 - Next.js 16 (App Router, TypeScript, Tailwind v4) · Vercel
 - Supabase (Postgres + Storage + GitHub OAuth, `@supabase/ssr`)
-- LLM: Vercel AI SDK로 추상화. 메인 모델은 Upstage Solar Pro 4 vs Claude Sonnet 5 비교 후 결정
+- LLM: Upstage Solar Pro 4 (Vercel AI SDK로 추상화, JSON 모드+재시도). 임베딩도 Upstage로 단일화
 - 커밋↔대화 매칭: 로그 안의 커밋 호출 → 타임스탬프 → 임베딩 유사도 순 (pgvector는 필요 시 추가)
 - GitHub REST API (Octokit)
 

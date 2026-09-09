@@ -1,21 +1,21 @@
 /**
- * Step 4 harness: same chunks + same prompt → both candidate models → report.
+ * Tagging eval harness (originally Step 4 model comparison; the model is now
+ * fixed to Solar Pro 4, so this is the prompt/설정 A/B tool).
  *
  *   npm run eval:models -- <log file> [--chunks 10] [--seed 42]
  *
- * Reads a raw session log (any supported format), normalizes and chunks it,
- * samples N chunks, and runs the v1 tagging prompt on every configured
- * provider (a provider with no API key is skipped with a notice). Writes a
- * markdown report + raw JSON under .parsed/eval/ (gitignored — contains log
- * quotes, so treat it like the log itself).
+ * Runs the production path — JSON mode (`generateObject`) + one retry — on
+ * sampled chunks and reports the metrics that decide prompt versions. Writes
+ * a markdown report + raw JSON under .parsed/eval/ (gitignored — contains
+ * log quotes, so treat it like the log itself).
  *
- * Metrics: JSON validity, findings per stage, verified-quote rate (the quote
- * string actually occurs in the chunk — our "출처 기반 정확성" measure),
- * latency, tokens, estimated cost per chunk and per full session.
+ * Metrics: first-try / after-retry validity, findings per stage,
+ * verified-quote rate (quote occurs verbatim in the chunk — our
+ * "출처 기반 정확성" measure), latency, tokens, cost per chunk and session.
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { generateText } from "ai";
+import { generateObject } from "ai";
 import { parseSession } from "../../src/lib/parser";
 import { chunkSession, type Chunk } from "../../src/lib/pipeline/chunk";
 import {
@@ -36,6 +36,8 @@ import {
 interface ChunkRun {
   chunkId: string;
   ok: boolean;
+  /** true when the first attempt already validated (no retry needed). */
+  firstTry: boolean;
   parseError?: string;
   findings: TaggingOutput["findings"];
   verifiedQuotes: number;
@@ -56,15 +58,10 @@ function sample<T>(items: T[], n: number, seed: number): T[] {
   return arr.slice(0, Math.min(n, arr.length));
 }
 
-function stripFence(text: string): string {
-  const t = text.trim();
-  const m = t.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
-  return m ? m[1] : t;
-}
-
+/** Production path: JSON mode via generateObject, then one retry on failure. */
 async function runChunk(p: ProviderConfig, chunk: Chunk): Promise<ChunkRun> {
   const t0 = Date.now();
-  const base: Omit<ChunkRun, "ok"> = {
+  const base: Omit<ChunkRun, "ok" | "firstTry"> = {
     chunkId: chunk.id,
     findings: [],
     verifiedQuotes: 0,
@@ -72,37 +69,33 @@ async function runChunk(p: ProviderConfig, chunk: Chunk): Promise<ChunkRun> {
     inputTokens: 0,
     outputTokens: 0,
   };
-  try {
-    const res = await generateText({
-      model: getModel(p),
-      system: TAGGING_SYSTEM,
-      prompt: taggingUserPrompt(chunk.text),
-      maxOutputTokens: 2000,
-    });
-    base.latencyMs = Date.now() - t0;
-    base.inputTokens = res.usage?.inputTokens ?? 0;
-    base.outputTokens = res.usage?.outputTokens ?? 0;
-    const parsed = taggingOutputSchema.safeParse(
-      JSON.parse(stripFence(res.text)),
-    );
-    if (!parsed.success) {
-      return { ...base, ok: false, parseError: parsed.error.issues[0]?.message };
+  let parseError: string | undefined;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await generateObject({
+        model: getModel(p),
+        schema: taggingOutputSchema,
+        system: TAGGING_SYSTEM,
+        prompt: taggingUserPrompt(chunk.text),
+        maxOutputTokens: 2000,
+      });
+      base.latencyMs = Date.now() - t0;
+      base.inputTokens += res.usage?.inputTokens ?? 0;
+      base.outputTokens += res.usage?.outputTokens ?? 0;
+      const findings = (res.object as TaggingOutput).findings;
+      base.findings = findings;
+      base.verifiedQuotes = findings.filter(
+        (f) =>
+          chunk.eventIds.includes(f.quote.eventId) &&
+          chunk.text.includes(f.quote.text),
+      ).length;
+      return { ...base, ok: true, firstTry: attempt === 0 };
+    } catch (err) {
+      parseError = err instanceof Error ? err.message.slice(0, 200) : String(err);
+      base.latencyMs = Date.now() - t0;
     }
-    base.findings = parsed.data.findings;
-    base.verifiedQuotes = parsed.data.findings.filter(
-      (f) =>
-        chunk.eventIds.includes(f.quote.eventId) &&
-        chunk.text.includes(f.quote.text),
-    ).length;
-    return { ...base, ok: true };
-  } catch (err) {
-    return {
-      ...base,
-      ok: false,
-      latencyMs: Date.now() - t0,
-      parseError: err instanceof Error ? err.message.slice(0, 200) : String(err),
-    };
   }
+  return { ...base, ok: false, firstTry: false, parseError };
 }
 
 function summarize(p: ProviderConfig, runs: ChunkRun[], totalChunks: number) {
@@ -118,6 +111,9 @@ function summarize(p: ProviderConfig, runs: ChunkRun[], totalChunks: number) {
     provider: p.label,
     model: p.modelId,
     chunks: runs.length,
+    firstTryRate: runs.length
+      ? runs.filter((r) => r.firstTry).length / runs.length
+      : 0,
     jsonValidRate: runs.length ? ok.length / runs.length : 0,
     findingsTotal: findings.length,
     perStage,
@@ -145,7 +141,7 @@ function reportMarkdown(
   const rows = summaries
     .map(
       (s) =>
-        `| ${s.provider} | ${(s.jsonValidRate * 100).toFixed(0)}% | ${s.findingsTotal} | ` +
+        `| ${s.provider} | ${(s.firstTryRate * 100).toFixed(0)}% → ${(s.jsonValidRate * 100).toFixed(0)}% | ${s.findingsTotal} | ` +
         `${STAGES.map((st) => s.perStage[st]).join("/")} | ` +
         `${(s.quoteVerifiedRate * 100).toFixed(0)}% | ${s.avgLatencyMs}ms | ` +
         `$${s.sampleCostUsd.toFixed(4)} | $${s.estSessionCostUsd.toFixed(4)} |`,
@@ -157,7 +153,7 @@ function reportMarkdown(
 - 청크: 전체 ${totalChunks}개 중 ${sampled}개 샘플 (동일 샘플·동일 프롬프트)
 - 생성: ${new Date().toISOString()}
 
-| 모델 | JSON 유효율 | 태그 수 | 단계별(p/i/e/r) | 인용 검증율 | 평균 지연 | 샘플 비용 | 세션 추정 비용 |
+| 모델 | 유효율(1회→재시도후) | 태그 수 | 단계별(p/i/e/r) | 인용 검증율 | 평균 지연 | 샘플 비용 | 세션 추정 비용 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 ${rows}
 
