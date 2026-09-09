@@ -64,3 +64,37 @@ test("failed Codex tagging retries and does not produce fabricated portfolio fin
   assert.deepEqual(view.timeline, []);
   assert.equal(view.stats.commits, 1);
 });
+
+test("multiple Codex chunks retain successful findings in source order after a partial failure", async () => {
+  const texts = ["첫 요청", "실패할 요청", "마지막 요청"];
+  const records = [
+    { type: "session_meta", payload: { cwd: "/demo" } },
+    ...texts.map((text) => ({ type: "response_item", payload: {
+      type: "message", role: "user", content: [{ type: "input_text", text: text + "가".repeat(900) }],
+    } })),
+  ];
+  const parsed = parseSession(records.map((record) => JSON.stringify(record)));
+  const chunks = chunkSession(parsed);
+  assert.equal(chunks.length, 3);
+  const attempts = new Map<string, number>();
+  const progress: number[] = [];
+  const tagged = await tagSession(chunks, { concurrency: 2,
+    onProgress: (done) => progress.push(done),
+    runner: async (chunk) => {
+      attempts.set(chunk.id, (attempts.get(chunk.id) ?? 0) + 1);
+      if (chunk.id === "c002") throw new Error("synthetic failure");
+      const index = chunks.indexOf(chunk);
+      return { output: { findings: [{ stage: "instruct", summary: texts[index],
+        quote: { eventId: chunk.eventIds[0], text: texts[index] }, confidence: 0.9,
+      }] }, inputTokens: 10, outputTokens: 5 };
+    },
+  });
+  assert.equal(attempts.get("c002"), 2);
+  assert.deepEqual(tagged.failedChunks, ["c002"]);
+  assert.deepEqual(progress, [1, 2, 3]);
+  assert.deepEqual(tagged.findings.map((finding) => finding.quote.eventId), ["e0001", "e0003"]);
+  assert.equal(tagged.inputTokens, 20);
+  assert.equal(tagged.outputTokens, 10);
+  const view = buildPortfolioView(parsed, tagged.findings, meta);
+  assert.deepEqual(view.timeline.map((event) => event.quote), ["첫 요청", "마지막 요청"]);
+});

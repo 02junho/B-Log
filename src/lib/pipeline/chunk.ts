@@ -81,7 +81,7 @@ export function chunkSession(session: BLogSession): Chunk[] {
   const groups: { events: BLogEvent[]; text: string }[] = [];
   for (const t of rendered) {
     const last = groups[groups.length - 1];
-    if (last && last.text.length < MIN_CHARS) {
+    if (last && last.text.length < MIN_CHARS && last.text.length + 1 + t.text.length <= MAX_CHARS) {
       last.events = last.events.concat(t.events);
       last.text = `${last.text}\n${t.text}`;
       continue;
@@ -95,7 +95,7 @@ export function chunkSession(session: BLogSession): Chunk[] {
     let partText = "";
     for (const e of t.events) {
       const lineText = renderEvent(e);
-      if (partText && partText.length + lineText.length > MAX_CHARS) {
+      if (partText && partText.length + 1 + lineText.length > MAX_CHARS) {
         groups.push({ events: part, text: partText });
         part = [];
         partText = "";
