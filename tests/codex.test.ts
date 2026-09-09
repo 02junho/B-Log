@@ -159,6 +159,70 @@ test("session_meta supplies cwd and start time without becoming an event", () =>
   assert.doesNotMatch(JSON.stringify(session), /SENTINEL/);
 });
 
+test("desktop JSON envelopes expose failures without losing successful sibling commits", () => {
+  const output = [
+    { type: "input_text", text: "Script completed" },
+    { type: "input_text", text: [
+      JSON.stringify({ chunk_id: "first", wall_time_seconds: 1, exit_code: 0, output: "[main abc1234] fix: example" }),
+      JSON.stringify({ chunk_id: "second", wall_time_seconds: 1, exit_code: 1, output: "test failed" }),
+    ].join("\n") },
+  ];
+  const events = parse([call("batch", "functions.exec", JSON.stringify({ cmd: "git commit -m 'fix: example'; npm test" })), result("batch", output)]);
+  assert.equal(events[1].toolResults?.[0].isError, true);
+  assert.deepEqual(events[1].gitCommit, { sha: "abc1234", message: "fix: example" });
+});
+
+test("failed desktop envelope cannot confirm a commit or patch", () => {
+  const output = JSON.stringify({ chunk_id: "failed", wall_time_seconds: 1, exit_code: 1,
+    output: "[main abc1234] fake\nSuccess. Updated the following files:\nM fake.ts" });
+  const events = parse([call("p", "apply_patch", '"git commit -m fake"'), result("p", output)]);
+  assert.equal(events[1].toolResults?.[0].isError, true);
+  assert.equal(events[1].gitCommit, undefined);
+  assert.equal(events[1].filesChanged, undefined);
+});
+
+test("successful top-level exit_code envelopes expose confirmed patch paths", () => {
+  const events = parse([call("p", "apply_patch"), result("p", JSON.stringify({
+    exit_code: 0, output: "Success. Updated the following files:\nM src/a.ts",
+  }))]);
+  assert.deepEqual(events[1].filesChanged, ["src/a.ts"]);
+});
+
+test("negative Windows process exits are failures", () => {
+  const events = parse([call("p"), result("p", "Process exited with code -1073741510\ninterrupted")]);
+  assert.equal(events[1].toolResults?.[0].isError, true);
+});
+
+test("host reminders are removed from messages and results while user text survives", () => {
+  const events = parse([
+    response({ type: "message", role: "user", content: [{ type: "input_text", text:
+      "이 오류를 수정해줘.\n<system-reminder>HOST_SENTINEL</system-reminder>" }] }),
+    result("a", "actual output\n<system-reminder>HOST_SENTINEL</system-reminder>"),
+    response({ type: "message", role: "user", content: [{ type: "input_text", text:
+      "<system-reminder>HOST_SENTINEL</system-reminder>" }] }),
+  ]);
+  assert.equal(events.length, 2);
+  assert.equal(events[0].text.trim(), "이 오류를 수정해줘.");
+  assert.doesNotMatch(JSON.stringify(events), /HOST_SENTINEL/);
+  assert.equal(events[1].toolResults?.[0].output.trim(), "actual output");
+});
+
+test("plugin and environment preambles do not hide AGENTS instructions or consume real requests", () => {
+  const message = (text: string) => response({ type: "message", role: "user", content: [{ type: "input_text", text }] });
+  const events = parse([
+    message("<recommended_plugins>HOST_SENTINEL</recommended_plugins># AGENTS.md instructions for /demo\nHOST_SENTINEL"),
+    message("<environment_context>HOST_SENTINEL</environment_context>테스트를 고쳐줘."),
+    message("<recommended_plugins>HOST_SENTINEL</recommended_plugins>"),
+  ]);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].text, "테스트를 고쳐줘.");
+});
+
+test("ordinary multiline JSON stdout is not treated as a desktop envelope", () => {
+  const events = parse([call("a"), result("a", 'example:\n{"exit_code":1,"output":"sample"}')]);
+  assert.equal(events[1].toolResults?.[0].isError, undefined);
+});
+
 test("local rollout smoke check (opt-in; no raw content is printed or saved)", {
   skip: !process.env.BLOG_CODEX_LOG,
 }, () => {
