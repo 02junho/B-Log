@@ -6,7 +6,8 @@ import { STAGES, type PortfolioView } from "../src/lib/portfolio/view";
 
 test("fixtures/portfolio.sample.json matches the PortfolioView contract", () => {
   const view: PortfolioView = JSON.parse(
-    readFileSync(join(__dirname, "..", "fixtures", "portfolio.sample.json"), "utf8"),
+    // 테스트는 .test-dist/tests/에서 실행되므로 __dirname이 아니라 cwd 기준.
+    readFileSync(join(process.cwd(), "fixtures", "portfolio.sample.json"), "utf8"),
   );
   assert.equal(typeof view.slug, "string");
   assert.equal(typeof view.title, "string");
