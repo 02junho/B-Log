@@ -72,5 +72,6 @@ test("buildPortfolioView assembles summary, timeline, commit link, stats", () =>
     toolCalls: 1,
     commits: 1,
     durationMin: 10,
+    byRole: { user: 1, assistant: 1, tool: 0 },
   });
 });

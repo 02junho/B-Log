@@ -109,6 +109,7 @@ export function buildPortfolioView(
       ...(stats.durationMin !== undefined
         ? { durationMin: stats.durationMin }
         : {}),
+      byRole: stats.byRole,
     },
   };
 }

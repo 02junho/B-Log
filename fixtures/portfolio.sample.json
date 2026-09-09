@@ -99,6 +99,7 @@
     "events": 143,
     "toolCalls": 52,
     "commits": 2,
-    "durationMin": 29
+    "durationMin": 29,
+    "byRole": { "user": 18, "assistant": 73, "tool": 52 }
   }
 }

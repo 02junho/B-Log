@@ -31,4 +31,7 @@ test("fixtures/portfolio.sample.json matches the PortfolioView contract", () => 
   for (const key of ["events", "toolCalls", "commits"] as const) {
     assert.equal(typeof view.stats[key], "number");
   }
+  for (const role of ["user", "assistant", "tool"] as const) {
+    assert.equal(typeof view.stats.byRole[role], "number");
+  }
 });

@@ -24,6 +24,7 @@ export interface PortfolioView {
     summary: string;
     /** 원문 인용 (검증된 것만 — 원문에 그대로 존재). */
     quote?: string;
+    /** url은 repoUrl을 모르면 빈 문자열 — P3는 url이 있을 때만 링크를 건다. */
     commit?: { sha: string; message: string; url: string };
   }[];
   highlights: {
@@ -37,5 +38,7 @@ export interface PortfolioView {
     toolCalls: number;
     commits: number;
     durationMin?: number;
+    /** "AI 기여/인간 개입" 요약의 재료 (ROADMAP Step 7 화면 요구사항). */
+    byRole: { user: number; assistant: number; tool: number };
   };
 }
