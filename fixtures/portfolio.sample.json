@@ -1,0 +1,105 @@
+{
+  "slug": "sample-login-fix",
+  "title": "로그인 세션 만료 버그를 AI와 함께 잡은 과정",
+  "tools": ["Claude Code", "Bash", "Edit", "Read"],
+  "fidelity": "structured",
+  "summary": {
+    "problem": "새벽 배포 후 사용자가 5분마다 로그아웃되는 버그를 재현 조건까지 좁혀 정의했다.",
+    "instruct": "토큰 갱신 로직을 의심하며 미들웨어만 수정하도록 범위를 제한해 지시했다.",
+    "evidence": "만료 시각 로그를 직접 찍어 서버와 클라이언트의 시계 차이를 원인으로 확정했다.",
+    "recovery": "첫 수정이 테스트를 깨뜨리자 원인을 좁혀 재시도 로직을 걷어내고 복구했다."
+  },
+  "timeline": [
+    {
+      "ts": "2026-09-01T09:12:00.000Z",
+      "stage": "problem",
+      "summary": "배포 직후 로그아웃 반복 증상을 보고하고 재현 조건을 정의",
+      "quote": "어제 배포 이후로 5분마다 로그아웃돼. refresh 토큰이 안 도는 것 같은데 미들웨어부터 봐줘"
+    },
+    {
+      "ts": "2026-09-01T09:14:30.000Z",
+      "stage": "instruct",
+      "summary": "수정 범위를 미들웨어로 제한하고 인증 스토어는 건드리지 말라고 지시",
+      "quote": "auth 스토어는 건드리지 말고 middleware.ts 안에서만 고쳐. 스토어는 다른 팀이 쓰고 있어"
+    },
+    {
+      "ts": "2026-09-01T09:21:05.000Z",
+      "stage": "evidence",
+      "summary": "만료 시각을 로그로 찍어 서버-클라이언트 시계 차이를 확인",
+      "quote": "exp가 항상 발급 시각보다 300초 빠르게 찍힌다. 서버 시계가 아니라 초 단위 변환 문제다"
+    },
+    {
+      "ts": "2026-09-01T09:24:40.000Z",
+      "stage": "evidence",
+      "summary": "밀리초/초 단위 혼용을 원인으로 확정하고 수정 방향 결정",
+      "quote": "Date.now()는 ms고 exp는 초 단위야. 1000으로 나눠서 비교해야 해",
+      "commit": {
+        "sha": "3f9a2b1",
+        "message": "fix: compare token exp in seconds, not ms",
+        "url": "https://github.com/acme/sample-app/commit/3f9a2b1"
+      }
+    },
+    {
+      "ts": "2026-09-01T09:31:12.000Z",
+      "stage": "recovery",
+      "summary": "수정 후 통합 테스트 2개가 깨진 것을 발견",
+      "quote": "tests/auth.spec.ts 2개가 빨간불이야. 재시도 로직이 이제 두 번 갱신하는 게 원인 같아"
+    },
+    {
+      "ts": "2026-09-01T09:38:47.000Z",
+      "stage": "recovery",
+      "summary": "불필요해진 재시도 로직을 제거해 테스트 복구",
+      "quote": "단위가 맞으니 재시도가 필요 없어졌어. retryRefresh를 지우고 테스트 다시 돌려",
+      "commit": {
+        "sha": "8c4d7e2",
+        "message": "refactor: drop redundant token refresh retry",
+        "url": "https://github.com/acme/sample-app/commit/8c4d7e2"
+      }
+    },
+    {
+      "ts": "2026-09-01T09:41:03.000Z",
+      "stage": "instruct",
+      "summary": "회귀 방지를 위해 경계값 테스트 추가를 지시",
+      "quote": "만료 1초 전/후 경계 테스트를 추가해줘. 이 버그 또 나면 안 돼"
+    }
+  ],
+  "highlights": [
+    {
+      "stage": "evidence",
+      "title": "만료 시각을 로그로 찍어 서버-클라이언트 시계 차이를 확인",
+      "quote": "exp가 항상 발급 시각보다 300초 빠르게 찍힌다. 서버 시계가 아니라 초 단위 변환 문제다",
+      "why": "세션 원문에서 그대로 확인된 인용 (e0031, 신뢰도 95%)"
+    },
+    {
+      "stage": "problem",
+      "title": "배포 직후 로그아웃 반복 증상을 보고하고 재현 조건을 정의",
+      "quote": "어제 배포 이후로 5분마다 로그아웃돼. refresh 토큰이 안 도는 것 같은데 미들웨어부터 봐줘",
+      "why": "세션 원문에서 그대로 확인된 인용 (e0002, 신뢰도 92%)"
+    },
+    {
+      "stage": "instruct",
+      "title": "수정 범위를 미들웨어로 제한하고 인증 스토어는 건드리지 말라고 지시",
+      "quote": "auth 스토어는 건드리지 말고 middleware.ts 안에서만 고쳐. 스토어는 다른 팀이 쓰고 있어",
+      "why": "세션 원문에서 그대로 확인된 인용 (e0005, 신뢰도 90%)"
+    },
+    {
+      "stage": "recovery",
+      "title": "불필요해진 재시도 로직을 제거해 테스트 복구",
+      "quote": "단위가 맞으니 재시도가 필요 없어졌어. retryRefresh를 지우고 테스트 다시 돌려",
+      "why": "세션 원문에서 그대로 확인된 인용 (e0058, 신뢰도 88%)"
+    },
+    {
+      "stage": "evidence",
+      "title": "밀리초/초 단위 혼용을 원인으로 확정하고 수정 방향 결정",
+      "quote": "Date.now()는 ms고 exp는 초 단위야. 1000으로 나눠서 비교해야 해",
+      "why": "세션 원문에서 그대로 확인된 인용 (e0034, 신뢰도 87%)"
+    }
+  ],
+  "stats": {
+    "events": 143,
+    "toolCalls": 52,
+    "commits": 2,
+    "durationMin": 29,
+    "byRole": { "user": 18, "assistant": 73, "tool": 52 }
+  }
+}

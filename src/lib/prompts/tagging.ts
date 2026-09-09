@@ -7,13 +7,10 @@
  * JSON validity itself becomes a comparable quality metric in the eval.
  */
 import { z } from "zod";
+import { STAGES } from "../portfolio/view";
 
-export const STAGES = [
-  "problem", // 문제 정의
-  "instruction", // AI 지시/프롬프트
-  "evidence", // 근거 탐색·의사결정
-  "recovery", // 실패·복구
-] as const;
+/** 단계 어휘는 계약(portfolio/view.ts = DB findings.stage)과 동일해야 한다. */
+export { STAGES };
 
 export const findingSchema = z.object({
   stage: z.enum(STAGES),
@@ -38,7 +35,7 @@ export const TAGGING_SYSTEM = `당신은 개발자와 AI 코딩 도구의 협업
 주어진 로그 조각에서 아래 4단계에 해당하는 순간을 찾아 태깅한다.
 
 - problem: 개발자가 문제·목표·요구사항을 정의하는 순간
-- instruction: 개발자가 AI에게 방향·제약·수정을 지시하는 순간 (좋은 지휘의 증거)
+- instruct: 개발자가 AI에게 방향·제약·수정을 지시하는 순간 (좋은 지휘의 증거)
 - evidence: 근거를 찾거나 검증하고, 그에 따라 의사결정하는 순간 (사람 또는 AI)
 - recovery: 실패·오류가 드러나고 그것을 진단·복구하는 순간
 
@@ -49,7 +46,7 @@ export const TAGGING_SYSTEM = `당신은 개발자와 AI 코딩 도구의 협업
 4. 사소한 반복(단순 확인, 인사)은 태깅하지 않는다. 조각당 최대 8개, 의미 있는 것만.
 5. 출력은 아래 형태의 JSON 하나만. 다른 텍스트·마크다운 코드펜스 금지.
 
-{"findings":[{"stage":"problem|instruction|evidence|recovery","summary":"...","quote":{"eventId":"e0001","text":"..."},"confidence":0.0}]}`;
+{"findings":[{"stage":"problem|instruct|evidence|recovery","summary":"...","quote":{"eventId":"e0001","text":"..."},"confidence":0.0}]}`;
 
 export function taggingUserPrompt(chunkText: string): string {
   return `세션 로그 조각:\n\n${chunkText}\n\nJSON:`;

@@ -150,9 +150,12 @@ type PortfolioView = {
   summary: { problem: string; instruct: string; evidence: string; recovery: string };
   timeline: { ts?: string; stage: Stage; summary: string; quote?: string; commit?: { sha: string; message: string; url: string } }[];
   highlights: { stage: Stage; title: string; quote: string; why: string }[];
-  stats: { events: number; toolCalls: number; commits: number; durationMin?: number };
+  stats: { events: number; toolCalls: number; commits: number; durationMin?: number;
+           byRole: { user: number; assistant: number; tool: number } };  // "AI 기여/인간 개입" 재료
 };
 ```
+
+(9/9 갱신: `stats.byRole` 추가 — ROADMAP Step 7의 "AI 기여/인간 개입" 요약 화면 요구사항. 원본은 `src/lib/portfolio/view.ts`.)
 
 ### 3.4 API 라우트 (P2 소유, P3 소비)
 
