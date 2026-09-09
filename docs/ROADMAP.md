@@ -1,8 +1,8 @@
 # B-Log 단계별 진행 문서
 
-> 마지막 갱신: 2026-09-08 (D-12). 단계가 끝날 때마다 이 문서를 갱신한다.
+> 마지막 갱신: 2026-09-09 (D-11). 단계가 끝날 때마다 이 문서를 갱신한다.
 > 상태 표기: ✅ 완료 · 🔄 진행 중 · ⏳ 예정 · ⚠️ 주의
-> ⚠️ 9/8 기준 Step 3·4가 이틀 밀림. 4인 병렬 분담과 날짜별 계획은 **[TEAM_PLAN.md](TEAM_PLAN.md)** 를 따른다(Step 3~7을 역할별로 동시 진행).
+> ⚠️ 9/9 기준 Step 3 완료. Step 4(모델 결정)와 Step 5(데이터·업로드)가 아직 미착수라 기한이 밀려 있다. 4인 병렬 분담과 날짜별 계획은 **[TEAM_PLAN.md](TEAM_PLAN.md)** 를 따른다(Step 4~7을 역할별로 동시 진행).
 
 ## 한눈에 보기
 
@@ -10,7 +10,7 @@
 | --- | --- | --- | --- |
 | 1 | 레포 · 첫 커밋 · 세션 로그 보존 | 9/4 | ✅ |
 | 2 | 배포 골격 (Next.js → Vercel → Supabase) | 9/5 | ✅ (9/6 완료) |
-| 3 | 파서 스파이크 (최대 리스크 먼저) | 9/6~9/7 | 🔄 Codex 어댑터 완료, 공통 연결·Claude 예정 |
+| 3 | 파서 스파이크 (최대 리스크 먼저) | 9/6~9/7 | ✅ (9/9 완료. 마스킹은 Step 5로) |
 | 4 | LLM 모델 · 프롬프트 v1 결정 | 9/7 | ⏳ |
 | 5 | 데이터 모델 · 업로드 · 잡 파이프라인 | 9/8~9/9 | ⏳ |
 | 6 | 4단계 태깅 · 커밋 매칭 · 하이라이트 | 9/10~9/11 | ⏳ |
@@ -74,38 +74,49 @@
 
 ---
 
-## Step 3. 파서 스파이크 🔄 (역할 B: 9/8 완료)
+## Step 3. 파서 스파이크 ✅ (9/9 완료)
 
 **목표** 실제 세션 로그가 공통 스키마로 정확히 파싱되는지 UI보다 먼저 검증한다. 여기서 안 되면 나머지가 다 무너진다.
 
-**역할 B 완료 (Codex)**
+**완료 조건 판정** 세션 1개를 넣으면 정규화 JSON이 나오고(`npm run parse`), 두 형식
+각각의 합성 입력·기대 출력이 레포에 있다(`tests/fixtures/`). 충족.
+
+### 역할 B: Codex 어댑터 (9/8)
+
 - 담당: [@Aio1135](https://github.com/Aio1135) — Codex rollout 어댑터·fixture 테스트·실로그 검증.
-- `src/lib/parsers/schema.ts`: 문서의 공통 이벤트와 줄 배열 → 이벤트 배열 타입 정의.
-- `src/lib/parsers/codex.ts`: response_item 기반 발화 복원, function/custom 도구
-  호출·결과 ID 보존, 시스템·reasoning 제외, event_msg 중복 방지.
+- response_item 기반 발화 복원, function/custom 도구 호출·결과 ID 보존,
+  시스템·reasoning 제외, event_msg 중복 방지.
 - git commit 입력·출력을 보존하고, 직접 apply_patch 성공 결과의 변경 경로 추출.
   실패·미완료 패치는 변경으로 기록하지 않음. 중첩 스크립트는 보존하되 파일 변경을 추정하지 않음.
-- `tests/fixtures/`: 실제 B-Log 세션의 레코드 구조를 확인해 작성한 합성 JSON 입력과
-  기대 정규화 출력. 실제 세션 원문·JSONL·개인정보는 포함하지 않음.
-- `npm test`: snapshot, 병렬·고아 도구 결과, 실패 패치, BOM/손상 JSON 등 회귀 검증.
-  `BLOG_CODEX_LOG`로 개인 프로젝트 실로그 검증을 별도 실행 가능.
-- 검증 결과 (9/8): 합성 회귀 테스트 12개 + 이번 B-Log 실제 rollout 검증 1개,
-  총 13개 통과. `npm run lint`, `npm run typecheck`, `git diff --check` 통과.
+- `tests/fixtures/`: 실제 세션의 레코드 구조만 확인해 작성한 합성 JSON 입력과 기대 출력.
+  실제 세션 원문·JSONL·개인정보는 포함하지 않음.
+- 검증 (9/8): 합성 회귀 테스트 12개 + 실제 rollout 검증 1개 통과.
 
-**남은 작업** Claude Code 어댑터, 공통 CLI/자동 판별, 정규식 마스킹, 두 형식의
-통합 스파이크. 새 TEAM_PLAN §3.1의 BLogEvent/BLogSession 계약과 현재
-NormalizedEvent 타입·경로를 합치는 작업도 P1과 진행해야 한다. 따라서 Step 3 전체는 아직 완료가 아님.
+### P1: 스키마 통합 · Claude Code 어댑터 · CLI (9/9)
 
-**할 일**
-- `scripts/parse-session.ts`: 공통 정규화 스키마 + 포맷별 어댑터 구조.
-  - 공통 이벤트: `{ role, ts?, text, toolCalls?, toolResults?, filesChanged?, source: { tool, fidelity } }`
-  - 어댑터 인터페이스: 함수 하나 (줄 배열 → 이벤트 배열)
-  - 형식 자동 판별: 첫 줄 키 (`session_meta` → Codex, `sessionId`/`type: user` → Claude Code)
-- Claude Code 어댑터 (1순위) → Codex rollout 어댑터 (2순위).
-- 검증 항목: 사용자·AI 발화 순서 복원, 도구 호출↔결과 짝, 파일 변경 추출, Codex의 시스템 프롬프트·reasoning 제거, 이메일·API 키 1차 마스킹, **로그 안의 git commit 도구 호출 추출**(커밋 매칭 1단계 근거).
-- 입력: 로컬 실데이터 (Claude Code 세션 97개, Codex 세션 12개).
+- **스키마 계약 하나로 통합.** `src/lib/parsers/` → `src/lib/parser/`, `NormalizedEvent` →
+  TEAM_PLAN §3.1의 `BLogSession`/`BLogEvent`. 이벤트별 `source`를 세션 레벨로 올리고
+  순번 ID·`gitCommit`을 추가했다. 역할 B가 이미 검증한 도구 호출 ID 짝(`id` ↔ `callId`)은
+  버리지 않고 계약 쪽에 흡수했다. P2·P3·P4가 이 타입 하나만 보면 된다.
+- **Claude Code 어댑터** `adapters/claude-code.ts`. user/assistant 레코드만 대화로 보고
+  attachment·system·queue-operation 등 호스트 기록은 무시(모르는 타입도 동일 = 전방 호환).
+  thinking 제외, 슬래시 명령 반향·`isMeta`·서브에이전트(`isSidechain`) 제외,
+  `<system-reminder>` 블록은 발화와 도구 결과 양쪽에서 제거.
+- **커밋 매칭 1단계 근거 확보** `git.ts`. git이 확인해 준 커밋만 기록한다(호스트가 준 sha
+  또는 git의 `[branch sha]` 보고). 훅에 막힌 커밋·빈 커밋·`git log` 조회는 커밋이 아니다.
+- **형식 자동 판별** `detect.ts`. 첫 줄 하나가 아니라 앞부분 30줄의 레코드 타입 어휘로 판정한다
+  (실제 로그는 첫 줄이 호스트 기록인 경우가 흔하다). 판별 실패 시 범용 대화록 경로로 넘긴다.
+- **CLI** `scripts/parse-session.ts` (`npm run parse`). 로그 → 정규화 JSON, `--stats`는
+  원문 없이 통계만 낸다. P4의 모델 비교 입력이 된다.
+- **실로그 검증에서 잡은 것 2건**: ①Codex 도구 결과 블록이 `input_text` 타입이라 출력이
+  통째로 비어 있었다(기존 어댑터의 미검출 버그). ②Codex 세션 대부분이 도구 호출을
+  중첩 스크립트로 감싸서 커밋이 하나도 안 잡혔다 → git 자신의 커밋 보고가 함께 있을 때만
+  인정하는 경로를 추가해 실로그에서 커밋 9건 추출 확인.
+- **검증 (9/9)**: 합성 테스트 35개 통과 + 실로그 검증 2개(Claude Code 세션 1개 123이벤트,
+  Codex 세션 1개 1865이벤트) 통과. `npm run lint`, `npm run typecheck` 통과.
 
-**완료 조건** 세션 1개를 넣으면 정규화 JSON이 나오고, 두 형식 각각의 샘플 결과가 레포에 있다.
+**남은 작업** 범용 대화록 어댑터(LLM 구조화)는 Step 5의 입구 3번과 함께,
+정규식 마스킹은 Step 5에서 한다. 어댑터는 2개에서 늘리지 않는다.
 
 **필요한 것** 데모 데이터로 쓸 **개인 프로젝트 로그 폴더 지정** (연구실 산출물 섞인 세션 제외).
 
