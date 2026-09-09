@@ -11,6 +11,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "prepare": "git config core.hooksPath .githooks || true",
     "eval:models": "tsc -p tsconfig.test.json && node --env-file=.env.local .test-dist/scripts/eval/compare-models.js",
+    "portfolio": "tsc -p tsconfig.test.json && node --env-file=.env.local .test-dist/scripts/build-portfolio.js",
     "db:link": "supabase link --project-ref btjxwvapcycfzaskxhfn",
     "db:push": "supabase db push",
     "db:types": "supabase gen types typescript --linked --schema public > src/lib/supabase/database.types.ts",
