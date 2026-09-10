@@ -43,6 +43,16 @@ export interface JobRunResponse {
   error?: string;
 }
 
+/** POST /api/sessions/[id]/publish — match → publish를 순서대로 실행. */
+export interface PublishResponse {
+  sessionId: string;
+  slug: string;
+  /** 공개 페이지 경로 (P3의 /p/[slug]). */
+  path: string;
+  matchJobId: string;
+  publishJobId: string;
+}
+
 export interface ApiError {
   error: string;
 }
