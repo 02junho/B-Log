@@ -1,8 +1,8 @@
 # B-Log 단계별 진행 문서
 
-> 마지막 갱신: 2026-09-09 (D-11). 단계가 끝날 때마다 이 문서를 갱신한다.
+> 마지막 갱신: 2026-09-10 오후 (D-10). 단계가 끝날 때마다 이 문서를 갱신한다.
 > 상태 표기: ✅ 완료 · 🔄 진행 중 · ⏳ 예정 · ⚠️ 주의
-> ⚠️ 9/9 저녁 기준: Step 3·4 완료, **Step 6의 P1 몫(태깅 엔진·PortfolioView·fixtures)도 선완료**(PR #3 머지). Step 5는 마이그레이션 초안까지 준비됨(PR #4, P2 검토 대기) — **업로드·잡 API(P2)가 현재 병목**, 9/12 API 엔드투엔드 마일스톤이 여기 걸려 있다. P3는 fixtures로 오늘부터 착수 가능. 분담·날짜별 계획은 **[TEAM_PLAN.md](TEAM_PLAN.md)**.
+> ✅ 9/10 오후 기준: **Step 1~6 완료. 백엔드 API 전 구간(업로드→파싱→태깅→매칭→마스킹→발행)이 프로덕션에서 동작한다** — 9/12 API E2E 마일스톤 이틀 조기 달성. 남은 핵심 경로는 **P3 화면**(fixtures로 개발 → 9/13 API 연결), P4 품질(마스킹 보강·프롬프트), P2 검수 플로우. 분담은 **[TEAM_PLAN.md](TEAM_PLAN.md)**, 제출서 초안은 **[SUBMISSION.md](SUBMISSION.md)**.
 
 ## 한눈에 보기
 
@@ -12,9 +12,9 @@
 | 2 | 배포 골격 (Next.js → Vercel → Supabase) | 9/5 | ✅ (9/6 완료) |
 | 3 | 파서 스파이크 (최대 리스크 먼저) | 9/6~9/7 | ✅ (9/9 완료. 마스킹은 Step 5로) |
 | 4 | LLM 모델 · 프롬프트 v1 결정 | 9/7 | ✅ (9/9 Solar 단독 확정) |
-| 5 | 데이터 모델 · 업로드 · 잡 파이프라인 | 9/8~9/9 | 🔄 (테이블 초안 PR #4 · 업로드·잡 API 미착수 ⚠️) |
-| 6 | 4단계 태깅 · 커밋 매칭 · 하이라이트 | 9/10~9/11 | 🔄 (P1 태깅 엔진·하이라이트 ✅ · 커밋 매칭 남음) |
-| 7 | 포트폴리오 페이지 · 마스킹 · GitHub OAuth | 9/12~9/13 | ⏳ (P3 fixtures 준비됨 — 착수 가능) |
+| 5 | 데이터 모델 · 업로드 · 잡 파이프라인 | 9/8~9/9 | ✅ (9/10 완료 — 프로덕션 동작) |
+| 6 | 4단계 태깅 · 커밋 매칭 · 하이라이트 | 9/10~9/11 | ✅ (9/10 완료 — 프롬프트 개선은 P4 계속) |
+| 7 | 포트폴리오 페이지 · 마스킹 2차 · GitHub OAuth · 검수 | 9/12~9/13 | ⏳ (백엔드 준비 완료 — P3 화면이 핵심 경로) |
 | — | **중간 점검: 엔드투엔드 1회전** | **9/14** | ⏳ |
 | 8 | 데모 3종 · 랜딩 · 모바일 · 스크린샷 | 9/15~9/16 | ⏳ |
 | 9 | 제출서 작성 · '제출' 상태로 가제출 | 9/17~9/18 | ⏳ |
@@ -48,7 +48,7 @@
 1. 레포 클론 후 `npm install` (훅 자동 활성화)
 2. `~/.claude/settings.json`에 `"cleanupPeriodDays": 3650`
 3. 세션은 항상 `B-Log` 폴더를 열고 시작 (로그가 프로젝트 폴더에 모임)
-4. 주 1회 로그를 레포 밖 비공개 저장소에 백업
+4. 주 1회(일요일) 로그 백업: 비공개 레포 `02junho/B-Log-logs` 클론(준호에게 권한 요청) 후 `bash scripts/backup-logs.sh` — B-Log 관련 로그만 자동 선별·푸시 (준호 첫 백업 9/10 완료)
 5. 새 AI 도구를 쓰면 README "사용한 AI 도구" 표에 추가
 
 ---
@@ -147,17 +147,18 @@
 
 ---
 
-## Step 5. 데이터 모델 · 업로드 · 잡 파이프라인 🔄 (기한 9/9 — 업로드·잡이 병목)
+## Step 5. 데이터 모델 · 업로드 · 잡 파이프라인 ✅ (9/10 완료)
 
-**된 것 (9/9)**
-- 코어 테이블 마이그레이션 초안: `supabase/migrations/20260909000001_core_tables.sql` (**PR #4**, P1이 P2 병목 해소용으로 작성. DB 적용은 아직 안 함).
-  8테이블(projects/sessions/chunks/findings/commits/matches/portfolios/jobs), 전 테이블 RLS+정책 없음(service_role 전용), `findings.quote`는 jsonb `{eventId,text}`, 자식 CASCADE, `jobs.next_idx`로 체인 재개.
-- Vercel 환경변수 `UPSTAGE_API_KEY` 등록·재배포 완료 → 잡 라우트가 프로덕션에서 LLM 호출 가능.
+**된 것 (PR #4·#7·#8·#10, 모두 머지·프로덕션 배포)**
+- 테이블 8개 + storage `logs` 버킷 프로덕션 적용, 타입 생성(`db:types`).
+- `POST /api/upload`: multipart → 형식 자동 판별 → Storage 저장 → session·parse 잡 생성.
+- `POST /api/jobs/[id]/run`: parse(파싱·청킹·chunks 저장) → tag(배치 25청크 태깅, `next_idx` 재개, `continue` 플래그). `maxDuration 300`.
+- `GET /api/jobs/[id]`: 상태·진행률 (P3 폴링용). 계약은 `src/lib/api/types.ts`.
+- **토큰 가드** `BLOG_API_TOKEN`(fail-closed): 비용 라우트 보호. OAuth(Step 7)가 대체할 때까지. 브라우저에 노출 금지.
+- **이중 실행 잠금**: tag는 배치 선점(next_idx 조건부 전진), parse는 queued→running 전이. 동시 3발/5발 검증 중복 0. idx 경계 버그(25청크 초과 세션 조기 종료)도 수정.
+- 프로덕션 E2E: 실로그 업로드→parse→tag→ready, findings 저장 확인.
 
-**남은 것 (P2)**
-- PR #4 검토(sessions.status·jobs.kind 어휘 확인) → 머지 → `npm run db:push` → `npm run db:types`.
-- 업로드 → Storage 저장 → 잡 생성 → 파싱·청킹 API (`POST /api/upload`, `GET /api/jobs/[id]`, `POST /api/jobs/[id]/run`).
-- 범용 대화록 입구(LLM 구조화), 마스킹 1차(정규식) — 컷 후보이므로 업로드·잡보다 뒤.
+**남은 것** 범용 대화록 입구(컷 후보 2번 — 필요 시에만), 일일 분석 상한(투표 기간 전, P2).
 
 ---
 
@@ -171,14 +172,20 @@
 - **P3 fixtures** `fixtures/portfolio.sample.json`(합성 데이터) + 계약 검증 테스트. 테스트 총 48개 통과.
 - 실측(메타 데모 후보 세션): 42청크 실패 0, 검증 findings 102개(미검증 66 제외), 82초, $0.045/세션.
 
-**남은 것**
-- 커밋↔대화 매칭 2단계(타임스탬프 창) 구현 — P2. (1단계는 파서가 이미 함. 알려진 한계: `git commit -q`는 git 보고가 없어 1단계에 안 잡힘 → 2단계가 보완)
-- GitHub 공개 레포 커밋 조회(Octokit) — P2.
-- 태깅 프롬프트 개선(인용 검증율 50~77% ↑) — P4, `npm run eval:models`로 전후 비교.
+**추가 완료 (9/10, PR #11)**
+- 커밋↔대화 매칭: `src/lib/match/stages.ts` — 1단계(청크 안 로그 sha 접두사, score 1) + 2단계(인용 이벤트 ±30분 창). 3단계(임베딩)는 컷 확정으로 미구현.
+- GitHub 커밋 조회: `src/lib/github/commits.ts` (표준 fetch, 최대 300개, `GITHUB_TOKEN` 선택).
+- **match·publish 잡 + `POST /api/sessions/[id]/publish`**: ready 세션 → 매칭 → PortfolioView 조립 → **정규식 마스킹(maskDeep)** → slug → portfolios 저장. E2E로 발행·마스킹(/Users 미노출) 확인.
+- 마스킹 1차 시작점: `src/lib/masking/rules.ts` (이메일·API키·JWT·홈경로·전화번호).
+
+**남은 것** 태깅 프롬프트 개선(인용 검증율 ↑) — P4, `npm run eval:models`로 전후 비교. 마스킹 규칙 보강·테스트 — P4.
 
 ---
 
-## Step 7. 포트폴리오 페이지 · 마스킹 · 인증 ⏳ (9/12~9/13)
+## Step 7. 포트폴리오 페이지 · 마스킹 2차 · 인증 · 검수 ⏳ (9/12~9/13)
+
+백엔드는 발행까지 준비됨 — 이 단계는 화면·인증·검수가 전부다.
+지금 publish는 **검수 없이 즉시 발행**이므로, 검수 화면이 생기면 P2·P3가 "검수 확정 후 발행"으로 연결한다.
 
 **할 일**
 - 공개 포트폴리오 페이지: 타임라인 + 하이라이트 카드 + "AI 기여/인간 개입" 요약 + 사용 도구 목록 + 분석 등급 배지. OG 태그(`opengraph-image.tsx`).
@@ -200,7 +207,9 @@
 
 ---
 
-## Step 9. 제출 ⏳ (9/17~9/18)
+## Step 9. 제출 ⏳ (9/17~9/18) — 초안 준비됨
+
+**[SUBMISSION.md](SUBMISSION.md)** 에 폼 필드 그대로 초안 작성됨(9/10): 제목 후보 3, 500자 본문 429자, 체크박스 7개 지정, 절차 체크리스트. ⚠️ 제출 폼 체크박스에 Upstage가 없어 **500자 본문의 "Upstage Solar Pro 4" 명시가 유일한 기재처** — 지우지 말 것.
 
 - 제출서 작성 후 **'제출' 상태로 가제출** (임시저장은 미제출 처리). 마감 전까지 수정 가능.
 - 필수 항목: 대표 이미지, 제목, 해결 문제 한 줄, **AI 활용 방식 500자(사용 도구 실명 필수)**, 서비스 링크, 스크린샷.
