@@ -3,6 +3,7 @@
  * continue=true면 클라이언트가 다시 호출해 이어간다 (jobs.next_idx가 재개 지점).
  * 초안 한계(P2 검토 항목): 인증 없음, 동시 run 호출에 대한 잠금은 status 검사뿐.
  */
+import { checkApiToken } from "@/lib/api/guard";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { processJob } from "@/lib/jobs/process";
 import type { ApiError, JobRunResponse } from "@/lib/api/types";
@@ -11,9 +12,11 @@ import type { ApiError, JobRunResponse } from "@/lib/api/types";
 export const maxDuration = 300;
 
 export async function POST(
-  _request: Request,
+  request: Request,
   ctx: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const denied = checkApiToken(request);
+  if (denied) return denied;
   const db = getSupabaseServerClient();
   if (!db) {
     return Response.json({ error: "db not configured" } satisfies ApiError, { status: 503 });

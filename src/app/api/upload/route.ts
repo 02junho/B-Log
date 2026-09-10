@@ -6,6 +6,7 @@
  * 대화록(transcript) 경로 미구현(422), 파일 상한 15MB.
  */
 import { randomUUID } from "node:crypto";
+import { checkApiToken } from "@/lib/api/guard";
 import { detectFormat } from "@/lib/parser";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { ApiError, UploadResponse } from "@/lib/api/types";
@@ -13,6 +14,8 @@ import type { ApiError, UploadResponse } from "@/lib/api/types";
 const MAX_BYTES = 15 * 1024 * 1024;
 
 export async function POST(request: Request): Promise<Response> {
+  const denied = checkApiToken(request);
+  if (denied) return denied;
   const db = getSupabaseServerClient();
   if (!db) {
     return Response.json({ error: "db not configured" } satisfies ApiError, { status: 503 });
