@@ -110,9 +110,7 @@ export async function tagChunk(
       base.outputTokens += outputTokens;
       const verified: TaggedFinding[] = [];
       for (const f of output.findings) {
-        const ok =
-          chunk.eventIds.includes(f.quote.eventId) &&
-          chunk.text.includes(f.quote.text);
+        const ok = quoteBelongsToEvent(chunk, f.quote.eventId, f.quote.text);
         if (ok) verified.push({ chunkId: chunk.id, ...f });
         else base.droppedQuotes++;
       }
@@ -122,6 +120,22 @@ export async function tagChunk(
     }
   }
   return { ...base, error: lastError };
+}
+
+/** Validate inside one rendered event section, excluding its synthetic header.
+ * Searching the whole chunk would attribute another speaker's words to this ID.
+ */
+function quoteBelongsToEvent(chunk: Chunk, eventId: string, quote: string): boolean {
+  if (!quote.trim() || !chunk.eventIds.includes(eventId)) return false;
+  const header = /^\[([^\]\r\n]+)\] [^:\r\n]+: ?/gm;
+  let current = header.exec(chunk.text);
+  while (current) {
+    const start = current.index + current[0].length;
+    const next = header.exec(chunk.text);
+    if (current[1] === eventId && chunk.text.slice(start, next?.index).includes(quote)) return true;
+    current = next;
+  }
+  return false;
 }
 
 export async function tagSession(

@@ -75,6 +75,17 @@ test("tagChunk retries once and then reports failure", async () => {
   assert.match(r.error ?? "", /boom/);
 });
 
+test("quote verification supports multiline text but excludes rendered headers and cross-event spans", async () => {
+  const c = chunk("c001", "[e0001] user: 첫 줄\n둘째 줄\n[e0002] assistant: 답변", ["e0001", "e0002"]);
+  const r = await tagChunk(c, async () => ({
+    output: { findings: ["첫 줄\n둘째 줄", "[e0001] user:", "둘째 줄\n[e0002] assistant: 답변", "답변"].map((text) => ({
+      stage: "problem" as const, summary: "인용", quote: { eventId: "e0001", text }, confidence: 0.9,
+    })) }, inputTokens: 1, outputTokens: 1,
+  }));
+  assert.deepEqual(r.findings.map((f) => f.quote.text), ["첫 줄\n둘째 줄"]);
+  assert.equal(r.droppedQuotes, 3);
+});
+
 test("tagSession aggregates findings, failures, and usage", async () => {
   const chunks = [
     chunk("c001", "[e0001] user: A", ["e0001"]),
