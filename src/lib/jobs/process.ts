@@ -57,6 +57,19 @@ export async function processJob(db: Db, job: JobRow): Promise<ProcessResult> {
 }
 
 async function runParse(db: Db, job: JobRow): Promise<ProcessResult> {
+  // 선점: queued → running 전이에 성공한 호출만 실행한다 (이중 실행 방지).
+  const { data: claimed, error: clErr } = await db
+    .from("jobs")
+    .update({ status: "running", updated_at: new Date().toISOString() })
+    .eq("id", job.id)
+    .eq("status", "queued")
+    .select("id");
+  if (clErr) throw new Error(`parse claim failed: ${clErr.message}`);
+  if (!claimed || claimed.length === 0) {
+    // 다른 호출이 실행 중. chunks unique(session_id, idx) 제약이 최후 방어선이다.
+    return { status: "running", progress: job.progress, continue: true };
+  }
+
   const { data: sessionRow, error: sErr } = await db
     .from("sessions")
     .select("id, storage_path")
@@ -103,6 +116,29 @@ async function runParse(db: Db, job: JobRow): Promise<ProcessResult> {
   return { status: "done", progress: 100, continue: false, nextJobId: tagJob.id };
 }
 
+/**
+ * 배치 선점(낙관적 잠금): 작업 전에 next_idx를 조건부로 전진시킨다.
+ * next_idx가 기대값과 같을 때만 갱신되므로, run이 동시에 여러 번 와도
+ * 배치 하나는 정확히 한 호출만 소유한다 → findings 중복 없음.
+ * 대가: 선점한 호출이 크래시하면 그 배치는 건너뛰어진다(중복보다 낫다 —
+ * 복구는 세션 재파싱). 반환값 null = 다른 호출이 선점 중.
+ */
+async function claimTagBatch(db: Db, job: JobRow): Promise<number | null> {
+  const { data, error } = await db
+    .from("jobs")
+    .update({
+      status: "running",
+      next_idx: job.next_idx + TAG_BATCH,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", job.id)
+    .eq("next_idx", job.next_idx)
+    .in("status", ["queued", "running"])
+    .select("id");
+  if (error) throw new Error(`batch claim failed: ${error.message}`);
+  return data && data.length > 0 ? job.next_idx : null;
+}
+
 async function runTag(db: Db, job: JobRow): Promise<ProcessResult> {
   const { count } = await db
     .from("chunks")
@@ -111,17 +147,26 @@ async function runTag(db: Db, job: JobRow): Promise<ProcessResult> {
   const total = count ?? 0;
   if (total === 0) throw new Error("no chunks to tag");
 
+  const batchStart = await claimTagBatch(db, job);
+  if (batchStart === null) {
+    // 다른 run 호출이 이 배치를 이미 선점했다. 그쪽이 이어가므로 여기선 손대지 않는다.
+    return {
+      status: "running",
+      progress: job.progress,
+      continue: true,
+    };
+  }
+
   const { data: rows, error: cErr } = await db
     .from("chunks")
     .select("id, idx, text, tool_calls")
     .eq("session_id", job.session_id)
-    .gte("idx", job.next_idx)
-    .order("idx")
-    .limit(TAG_BATCH);
+    .gte("idx", batchStart)
+    .lt("idx", batchStart + TAG_BATCH)
+    .order("idx");
   if (cErr) throw new Error(`chunks fetch failed: ${cErr.message}`);
 
   if (rows && rows.length > 0) {
-    await db.from("jobs").update({ status: "running" }).eq("id", job.id);
     const idByIdx = new Map(rows.map((r) => [r.idx, r.id]));
     const chunks: Chunk[] = rows.map((r) => ({
       id: `c${String(r.idx).padStart(3, "0")}`,
@@ -149,22 +194,31 @@ async function runTag(db: Db, job: JobRow): Promise<ProcessResult> {
     }
   }
 
-  const lastIdx = rows && rows.length > 0 ? rows[rows.length - 1].idx : job.next_idx;
-  const processedUpTo = lastIdx + 1;
-  const remaining = rows ? rows.length === TAG_BATCH : false;
-  const progress = Math.min(99, Math.round((processedUpTo / (total + 1)) * 100));
+  // 남은 배치 판정은 실제 존재 여부로 한다 (idx가 1부터 시작해 첫 배치가
+  // TAG_BATCH보다 작게 잡히는 경계에서도 안전).
+  const { count: remainCount } = await db
+    .from("chunks")
+    .select("id", { count: "exact", head: true })
+    .eq("session_id", job.session_id)
+    .gte("idx", batchStart + TAG_BATCH);
+  const remaining = (remainCount ?? 0) > 0;
+  const progress = Math.min(
+    99,
+    Math.round((Math.min(batchStart + TAG_BATCH, total) / (total + 1)) * 100),
+  );
 
   if (remaining) {
     await db
       .from("jobs")
-      .update({ next_idx: processedUpTo, progress })
+      .update({ progress, updated_at: new Date().toISOString() })
       .eq("id", job.id);
     return { status: "running", progress, continue: true };
   }
 
+  // 마지막 배치. 완료 처리는 멱등이라 경쟁 호출이 겹쳐도 안전하다.
   await db
     .from("jobs")
-    .update({ status: "done", progress: 100, next_idx: processedUpTo })
+    .update({ status: "done", progress: 100, updated_at: new Date().toISOString() })
     .eq("id", job.id);
   await db.from("sessions").update({ status: "ready" }).eq("id", job.session_id);
   return { status: "done", progress: 100, continue: false };
