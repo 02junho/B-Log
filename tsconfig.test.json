@@ -13,6 +13,9 @@
   "include": [
     "src/lib/parser/**/*.ts",
     "src/lib/pipeline/**/*.ts",
+    "src/lib/github/**/*.ts",
+    "src/lib/match/**/*.ts",
+    "src/lib/masking/**/*.ts",
     "src/lib/portfolio/**/*.ts",
     "src/lib/prompts/**/*.ts",
     "scripts/**/*.ts",

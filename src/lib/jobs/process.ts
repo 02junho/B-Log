@@ -5,12 +5,18 @@
  * tag 잡: next_idx부터 청크 배치를 태깅(동시성 5) → findings 저장 → 진행률 갱신.
  *   한 번의 run 호출은 TAG_BATCH개까지만 처리하고 남으면 continue=true를 돌려준다
  *   (Vercel 300초 안에서 안전하게 재개 — jobs.next_idx가 재개 지점).
- * match·publish 잡: P2 구현 예정 (지금은 501).
+ * match 잡: GitHub 커밋 조회 → 1단계(로그 sha)·2단계(±30분 창) 매칭 → matches 저장.
+ * publish 잡: 원본 재파싱(LLM 없음) → PortfolioView 조립 → 마스킹 → portfolios 저장.
  */
 import { parseSession } from "../parser";
+import type { BLogSession } from "../parser/schema";
 import { sessionStats } from "../parser/stats";
 import { chunkSession, type Chunk } from "../pipeline/chunk";
-import { tagSession } from "../pipeline/tag";
+import { tagSession, type TaggedFinding } from "../pipeline/tag";
+import { buildPortfolioView } from "../portfolio/build";
+import { fetchRepoCommits } from "../github/commits";
+import { matchFindings, type MatchInput } from "../match/stages";
+import { maskDeep } from "../masking/rules";
 import type { Db } from "../supabase/server";
 
 /** run 1회가 처리하는 최대 청크 수. 실측 ~5s/청크·동시성 5 기준 여유 있게. */
@@ -42,6 +48,8 @@ export async function processJob(db: Db, job: JobRow): Promise<ProcessResult> {
   try {
     if (job.kind === "parse") return await runParse(db, job);
     if (job.kind === "tag") return await runTag(db, job);
+    if (job.kind === "match") return await runMatch(db, job);
+    if (job.kind === "publish") return await runPublish(db, job);
     return {
       status: "failed",
       progress: job.progress,
@@ -51,7 +59,10 @@ export async function processJob(db: Db, job: JobRow): Promise<ProcessResult> {
   } catch (err) {
     const message = err instanceof Error ? err.message.slice(0, 500) : String(err);
     await db.from("jobs").update({ status: "failed", error: message }).eq("id", job.id);
-    await db.from("sessions").update({ status: "failed" }).eq("id", job.session_id);
+    // match·publish 실패는 분석 결과(ready)를 훼손하지 않는다.
+    if (job.kind === "parse" || job.kind === "tag") {
+      await db.from("sessions").update({ status: "failed" }).eq("id", job.session_id);
+    }
     return { status: "failed", progress: job.progress, continue: false, error: message };
   }
 }
@@ -221,5 +232,215 @@ async function runTag(db: Db, job: JobRow): Promise<ProcessResult> {
     .update({ status: "done", progress: 100, updated_at: new Date().toISOString() })
     .eq("id", job.id);
   await db.from("sessions").update({ status: "ready" }).eq("id", job.session_id);
+  return { status: "done", progress: 100, continue: false };
+}
+
+/** queued → running 전이 선점 (match·publish 공용). null = 다른 호출이 실행 중. */
+async function claimQueued(db: Db, jobId: string): Promise<boolean> {
+  const { data, error } = await db
+    .from("jobs")
+    .update({ status: "running", updated_at: new Date().toISOString() })
+    .eq("id", jobId)
+    .eq("status", "queued")
+    .select("id");
+  if (error) throw new Error(`claim failed: ${error.message}`);
+  return Boolean(data && data.length > 0);
+}
+
+/** 세션 원본을 Storage에서 내려받아 다시 파싱 (LLM 없음, 수 초). */
+async function loadParsedSession(
+  db: Db,
+  sessionId: string,
+): Promise<{ session: BLogSession; repoUrl: string | null }> {
+  const { data: row, error } = await db
+    .from("sessions")
+    .select("storage_path, project_id, projects(repo_url)")
+    .eq("id", sessionId)
+    .single();
+  if (error || !row) throw new Error(`session not found: ${error?.message}`);
+  const { data: blob, error: dErr } = await db.storage
+    .from("logs")
+    .download(row.storage_path);
+  if (dErr || !blob) throw new Error(`storage download failed: ${dErr?.message}`);
+  const repoUrl =
+    (row.projects as unknown as { repo_url: string | null } | null)?.repo_url ?? null;
+  return { session: parseSession((await blob.text()).split("\n")), repoUrl };
+}
+
+async function runMatch(db: Db, job: JobRow): Promise<ProcessResult> {
+  if (!(await claimQueued(db, job.id))) {
+    return { status: "running", progress: job.progress, continue: true };
+  }
+  const { session, repoUrl } = await loadParsedSession(db, job.session_id);
+
+  if (!repoUrl) {
+    // 레포 연결이 없으면 매칭할 대상이 없다 — 실패가 아니라 빈 완료.
+    await db.from("jobs").update({ status: "done", progress: 100 }).eq("id", job.id);
+    return { status: "done", progress: 100, continue: false };
+  }
+
+  // GitHub 커밋 조회 → commits 테이블 upsert
+  const repoCommits = await fetchRepoCommits(repoUrl);
+  const { data: project } = await db
+    .from("sessions")
+    .select("project_id")
+    .eq("id", job.session_id)
+    .single();
+  const projectId = project!.project_id;
+  if (repoCommits.length > 0) {
+    const { error: uErr } = await db.from("commits").upsert(
+      repoCommits.map((c) => ({
+        project_id: projectId,
+        sha: c.sha,
+        message: c.message,
+        authored_at: c.authoredAt ?? null,
+      })),
+      { onConflict: "project_id,sha" },
+    );
+    if (uErr) throw new Error(`commits upsert failed: ${uErr.message}`);
+  }
+  const { data: commitRows } = await db
+    .from("commits")
+    .select("id, sha, message, authored_at")
+    .eq("project_id", projectId);
+  const commitIdBySha = new Map((commitRows ?? []).map((c) => [c.sha, c.id]));
+
+  // finding별 매칭 입력 구성: 인용 이벤트 ts + 같은 청크의 로그 커밋 sha
+  const { data: chunkRows } = await db
+    .from("chunks")
+    .select("id, tool_calls")
+    .eq("session_id", job.session_id);
+  const eventIdsByChunk = new Map(
+    (chunkRows ?? []).map((c) => [
+      c.id,
+      (c.tool_calls as { eventIds?: string[] } | null)?.eventIds ?? [],
+    ]),
+  );
+  const eventById = new Map(session.events.map((e) => [e.id, e]));
+  const { data: findingRows } = await db
+    .from("findings")
+    .select("id, chunk_id, quote")
+    .eq("session_id", job.session_id);
+
+  const inputs: MatchInput[] = (findingRows ?? []).map((f) => {
+    const quote = f.quote as { eventId?: string };
+    const quoteEvent = quote.eventId ? eventById.get(quote.eventId) : undefined;
+    const chunkShas = (eventIdsByChunk.get(f.chunk_id) ?? [])
+      .map((id) => eventById.get(id)?.gitCommit?.sha)
+      .filter((sha): sha is string => Boolean(sha));
+    return {
+      findingId: f.id,
+      ...(quoteEvent?.ts ? { quoteTs: quoteEvent.ts } : {}),
+      chunkCommitShas: chunkShas,
+    };
+  });
+
+  const matches = matchFindings(
+    inputs,
+    (commitRows ?? []).map((c) => ({
+      sha: c.sha,
+      message: c.message,
+      ...(c.authored_at ? { authoredAt: c.authored_at } : {}),
+    })),
+  );
+
+  // 재실행 대비: 이 세션 findings의 기존 매칭을 지우고 새로 넣는다.
+  const findingIds = (findingRows ?? []).map((f) => f.id);
+  if (findingIds.length > 0) {
+    await db.from("matches").delete().in("finding_id", findingIds);
+  }
+  if (matches.length > 0) {
+    const { error: mErr } = await db.from("matches").insert(
+      matches.flatMap((m) => {
+        const commitId = commitIdBySha.get(m.sha);
+        return commitId
+          ? [{ finding_id: m.findingId, commit_id: commitId, method: m.method, score: m.score }]
+          : [];
+      }),
+    );
+    if (mErr) throw new Error(`matches insert failed: ${mErr.message}`);
+  }
+
+  await db.from("jobs").update({ status: "done", progress: 100 }).eq("id", job.id);
+  return { status: "done", progress: 100, continue: false };
+}
+
+function slugify(title: string, sessionId: string): string {
+  const base = title
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+  return `${base || "session"}-${sessionId.slice(0, 6)}`;
+}
+
+async function runPublish(db: Db, job: JobRow): Promise<ProcessResult> {
+  if (!(await claimQueued(db, job.id))) {
+    return { status: "running", progress: job.progress, continue: true };
+  }
+  const { session, repoUrl } = await loadParsedSession(db, job.session_id);
+
+  // findings 복원 (chunk_id → "cNNN")
+  const { data: chunkRows } = await db
+    .from("chunks")
+    .select("id, idx")
+    .eq("session_id", job.session_id);
+  const idxByChunkId = new Map((chunkRows ?? []).map((c) => [c.id, c.idx]));
+  const { data: findingRows } = await db
+    .from("findings")
+    .select("chunk_id, stage, summary, quote, confidence")
+    .eq("session_id", job.session_id);
+  const findings: TaggedFinding[] = (findingRows ?? []).map((f) => ({
+    chunkId: `c${String(idxByChunkId.get(f.chunk_id) ?? 0).padStart(3, "0")}`,
+    stage: f.stage as TaggedFinding["stage"],
+    summary: f.summary,
+    quote: f.quote as TaggedFinding["quote"],
+    confidence: f.confidence,
+  }));
+
+  const { data: projectRow } = await db
+    .from("sessions")
+    .select("projects(name)")
+    .eq("id", job.session_id)
+    .single();
+  const title =
+    (projectRow?.projects as unknown as { name: string } | null)?.name ??
+    "세션 분석";
+  const slug = slugify(title, job.session_id);
+
+  // 마스킹은 발행 직전, view 전체에 (정규식 1차 — LLM 2차는 P4 후속)
+  const view = maskDeep(
+    buildPortfolioView(session, findings, {
+      slug,
+      title,
+      ...(repoUrl ? { repoUrl } : {}),
+    }),
+  );
+
+  // 세션당 포트폴리오 1개: 있으면 갱신, 없으면 생성.
+  const { data: existing } = await db
+    .from("portfolios")
+    .select("id")
+    .eq("session_id", job.session_id)
+    .maybeSingle();
+  const now = new Date().toISOString();
+  if (existing) {
+    const { error } = await db
+      .from("portfolios")
+      .update({ slug, title, view: JSON.parse(JSON.stringify(view)), published_at: now })
+      .eq("id", existing.id);
+    if (error) throw new Error(`portfolio update failed: ${error.message}`);
+  } else {
+    const { error } = await db.from("portfolios").insert({
+      session_id: job.session_id,
+      slug,
+      title,
+      view: JSON.parse(JSON.stringify(view)),
+      published_at: now,
+    });
+    if (error) throw new Error(`portfolio insert failed: ${error.message}`);
+  }
+
+  await db.from("jobs").update({ status: "done", progress: 100 }).eq("id", job.id);
   return { status: "done", progress: 100, continue: false };
 }
