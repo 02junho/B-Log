@@ -227,7 +227,7 @@ type PortfolioView = {
 - **브랜치**: `main`은 항상 배포 가능. 각자 `feat/<역할>-<주제>` 브랜치에서 PR. 리뷰는 의존 방향의 상대 1명(P1↔P2, P2↔P3, P4는 아무나).
 - **머지는 준호가 "Create a merge commit"으로.** Vercel Hobby는 프로젝트 소유자가 아닌 사람의 커밋을 배포하지 않을 수 있어서, main에 올라가는 커밋의 작성자가 준호여야 안전하다. PR 본문에 "Generated with ..." 문구 금지, 커밋에 AI 공동 작성자 표기 금지(훅과 CI가 막음).
 - **데일리 싱크 15분(저녁 22:00 권장)**: 어제 한 것 · 오늘 할 것 · 막힌 것. 계약(§3) 변경은 여기서만.
-- **세션 로그 보존**: 4명 모두 `~/.claude/settings.json`에 `"cleanupPeriodDays": 3650`. Codex 사용자는 `~/.codex/sessions/`를 지우지 않는다. 주 1회(일요일) 각자 비공개 저장소에 백업.
+- **세션 로그 보존**: 4명 모두 `~/.claude/settings.json`에 `"cleanupPeriodDays": 3650`. Codex 사용자는 `~/.codex/sessions/`를 지우지 않는다. **주 1회(일요일) 백업**: 비공개 레포 `02junho/B-Log-logs`를 클론(준호에게 권한 요청) 후 `bash scripts/backup-logs.sh` 실행 — B-Log 관련 로그만 자동 선별해 커밋·푸시한다. 백업 레포는 절대 공개로 바꾸지 않는다.
 - **키 관리**: API 키는 각자 `.env.local`에만. 슬랙·노션에 붙여넣지 않는다. Vercel 환경변수는 준호만 수정.
 - **도구 기록**: 새 AI 도구를 쓰면 README "사용한 AI 도구" 표에 바로 추가. 제출서 필수 항목.
 - **폴더 경계**: 남의 소유 폴더를 고쳐야 하면 PR에 이유를 쓰고 소유자 리뷰를 받는다. `src/lib/api/types.ts`와 `schema.ts`는 변경 시 4명 모두에게 알린다.
