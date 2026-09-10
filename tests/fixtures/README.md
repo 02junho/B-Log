@@ -34,6 +34,11 @@
 
 ## 실행
 
+9/9 Codex 회귀 사례는 `tests/codex.test.ts`에도 합성 입력으로 정의한다.
+실제 B-Log 로그에서 확인한 Desktop JSON 결과 구조(`chunk_id`, `wall_time_seconds`,
+`exit_code`, `output`)를 사용하며 내용은 새로 작성했다. 성공/실패 혼합·음수 종료 코드·
+호스트 지침 제거·일반 JSON 오인 방지를 검증한다.
+
 기본 검증은 `npm test`. 실제 개인 프로젝트 로그 검증은 README의
 `BLOG_CLAUDE_LOG` · `BLOG_CODEX_LOG` 옵션을 사용합니다. 두 검사는 실패해도
 세션 원문이 출력되지 않도록 불리언과 개수만 단언합니다.

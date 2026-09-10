@@ -15,7 +15,15 @@ function decodeInput(value: string): unknown {
 }
 
 /** Codex reports a shell exit either as metadata or as its own last line. */
-const EXIT_LINE = /^Process exited with code (\d+)/m;
+const EXIT_LINE = /^Process exited with code (-?\d+)\b/m;
+
+function stripReminders(text: string): string {
+  return text.replace(/<system-reminder>[\s\S]*?(?:<\/system-reminder>|$)/g, "");
+}
+
+function userText(text: string): string {
+  return text.replace(/<(recommended_plugins|environment_context)>[\s\S]*?<\/\1>/g, "").trim();
+}
 
 function decodeOutput(output: string): { report: string; exitCode?: number } {
   const decoded = decodeInput(output);
@@ -25,10 +33,27 @@ function decodeOutput(output: string): { report: string; exitCode?: number } {
 
   const meta = wrapped && isRecord(wrapped.metadata) ? wrapped.metadata : undefined;
   if (meta && typeof meta.exit_code === "number") return { report, exitCode: meta.exit_code };
+  if (wrapped && typeof wrapped.exit_code === "number") return { report, exitCode: wrapped.exit_code };
 
   // A wrapper without metadata still prints the exit line inside its output.
   const exit = EXIT_LINE.exec(report);
   return { report, ...(exit ? { exitCode: Number(exit[1]) } : {}) };
+}
+
+/** Desktop script tools emit separate command envelopes, one JSON object per line.
+ * Keep their outcomes separate: one failed sibling must not erase another's commit.
+ * Only unwrap host-shaped records; arbitrary JSON in command stdout is not status.
+ */
+function outputReports(output: string): ReturnType<typeof decodeOutput>[] {
+  const whole = decodeInput(output);
+  if (isRecord(whole) && typeof whole.output === "string") return [decodeOutput(output)];
+  const reports = output.split(/\r?\n/).flatMap((line) => {
+    const value = decodeInput(line);
+    return isRecord(value) && typeof value.chunk_id === "string" &&
+      typeof value.wall_time_seconds === "number" && typeof value.output === "string"
+      ? [decodeOutput(line)] : [];
+  });
+  return reports.length ? reports : [decodeOutput(output)];
 }
 
 /** Extract only apply_patch's success report; never infer writes from a command. */
@@ -90,7 +115,8 @@ export const parseCodex: SessionAdapter = (lines) => {
       if (item.role !== "user" && item.role !== "assistant") continue;
       if (item.channel === "analysis" || item.phase === "analysis") continue;
       if (!Array.isArray(item.content)) continue;
-      const text = joinTextBlocks(item.content, ["input_text", "output_text"]);
+      const cleaned = stripReminders(joinTextBlocks(item.content, ["input_text", "output_text"]));
+      const text = item.role === "user" ? userText(cleaned) : cleaned;
       // Codex also injects repository and environment instructions as user items.
       if (
         item.role === "user" &&
@@ -100,7 +126,7 @@ export const parseCodex: SessionAdapter = (lines) => {
       ) {
         continue;
       }
-      if (text) events.push({ ...base, role: item.role, text });
+      if (text.trim()) events.push({ ...base, role: item.role, text });
     } else if (item.type === "function_call" || item.type === "custom_tool_call") {
       const input = item.type === "function_call" ? item.arguments : item.input;
       if (typeof item.call_id !== "string" || typeof item.name !== "string" || typeof input !== "string") continue;
@@ -115,12 +141,16 @@ export const parseCodex: SessionAdapter = (lines) => {
     } else if (item.type === "function_call_output" || item.type === "custom_tool_call_output") {
       if (typeof item.call_id !== "string") continue;
       // Tool output blocks are labelled input_text: they are the model's next input.
-      const output = joinTextBlocks(item.output, ["text", "output_text", "input_text"]);
-      const { report, exitCode } = decodeOutput(output);
-      const failed = exitCode !== undefined && exitCode !== 0;
+      const output = stripReminders(joinTextBlocks(item.output, ["text", "output_text", "input_text"]));
+      const reports = outputReports(output);
+      const failed = reports.some(({ exitCode }) => exitCode !== undefined && exitCode !== 0);
+      const successful = reports.filter(({ exitCode }) => exitCode === undefined || exitCode === 0);
       const call = calls.get(item.call_id);
-      const files = !failed && isPatchTool(call?.name) ? changedPaths(report) : [];
-      const gitCommit = failed || !call ? undefined : gitCommitFrom(commandOf(call.input), report);
+      const files = isPatchTool(call?.name)
+        ? [...new Set(successful.flatMap(({ report }) => changedPaths(report)))] : [];
+      const gitCommit = !call ? undefined : successful
+        .map(({ report }) => gitCommitFrom(commandOf(call.input), report))
+        .find((commit) => commit !== undefined);
       events.push({
         ...base,
         role: "tool",
