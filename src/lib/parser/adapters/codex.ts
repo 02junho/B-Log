@@ -45,13 +45,22 @@ function decodeOutput(output: string): { report: string; exitCode?: number } {
  * Only unwrap host-shaped records; arbitrary JSON in command stdout is not status.
  */
 function outputReports(output: string): ReturnType<typeof decodeOutput>[] {
+  function hostReport(value: unknown): ReturnType<typeof decodeOutput> | undefined {
+    // Promise.allSettled describes the JS promise, not the shell exit status.
+    // Only unwrap a fulfilled value carrying the full command envelope shape.
+    const envelope = isRecord(value) && value.status === "fulfilled" ? value.value : value;
+    if (!isRecord(envelope) || typeof envelope.chunk_id !== "string" ||
+      typeof envelope.wall_time_seconds !== "number" || typeof envelope.output !== "string") return undefined;
+    return decodeOutput(JSON.stringify(envelope));
+  }
+
   const whole = decodeInput(output);
   if (isRecord(whole) && typeof whole.output === "string") return [decodeOutput(output)];
+  const single = hostReport(whole);
+  if (single) return [single];
   const reports = output.split(/\r?\n/).flatMap((line) => {
-    const value = decodeInput(line);
-    return isRecord(value) && typeof value.chunk_id === "string" &&
-      typeof value.wall_time_seconds === "number" && typeof value.output === "string"
-      ? [decodeOutput(line)] : [];
+    const report = hostReport(decodeInput(line));
+    return report ? [report] : [];
   });
   return reports.length ? reports : [decodeOutput(output)];
 }
