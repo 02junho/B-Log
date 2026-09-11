@@ -19,7 +19,7 @@ Build-Log라는 이름처럼, 도구가 아니라 **빌드 과정**이 주인공
 | 이름 | GitHub | 역할 |
 | --- | --- | --- |
 | 준호 | [@02junho](https://github.com/02junho) | 기획 · 파이프라인 · 배포 |
-| Aio1135 | [@Aio1135](https://github.com/Aio1135) | 역할 B: Codex rollout 어댑터 · fixture 테스트 · 파서 검증 |
+| Aio1135 | [@Aio1135](https://github.com/Aio1135) | 역할 B: Codex rollout 어댑터 · fixture 테스트 · 파서 검증, 공개 포트폴리오 UI 지원 |
 | (팀원) | @ | |
 
 ## 입력 방식 (MVP: 입구 3개, 스키마 1개)
@@ -117,6 +117,18 @@ npm run parse -- <로그 파일> --format codex             # 자동 판별 대�
 - 도구 결과 블록은 `input_text` 타입입니다(모델의 다음 입력이라서). 세 타입 모두 읽습니다.
 - 중첩 스크립트 안의 `git commit`은 git의 `[branch sha]` 보고가 함께 있을 때만 커밋으로 인정합니다.
 
+## 공개 포트폴리오 화면
+
+현재 페이지의 역할과 서비스 완성까지 추가할 기능은 [서비스 UI 가이드](docs/SERVICE_UI_GUIDE.md)에 정리했습니다.
+
+`npm run dev`로 실행한 뒤 `/`에서 서비스 소개, `/p/sample-login-fix`에서 합성 데모를 확인합니다.
+공개 페이지 `/p/[slug]`는 발행된 `portfolios.view`만 읽으며, 기존 `PortfolioView` 계약을 사용합니다.
+4단계 요약·하이라이트·필터 가능한 타임라인·통계·분석 등급·링크 공유와 모바일 화면을 제공합니다.
+
+합성 데모는 DB 없이 열립니다. 실제 발행 결과 조회는 서버의 Supabase 환경 설정이 필요합니다.
+업로드·검수·OAuth 화면은 후속 작업이며, 서버용 `BLOG_API_TOKEN`은 브라우저에 전달하지 않습니다.
+팀별 현황과 연결할 작업은 [프론트엔드 인수인계](docs/FRONTEND_HANDOFF.md)를 참고하세요.
+
 ## 검증
 
 ```sh
@@ -139,8 +151,8 @@ Remove-Item Env:BLOG_CLAUDE_LOG, Env:BLOG_CODEX_LOG
 
 두 검사는 환경변수가 있을 때만 돌고, 실패해도 세션 원문을 출력하지 않도록
 불리언·개수만 단언합니다. 로컬 검증은 사용자·AI 발화와 도구 호출·결과 쌍이 있는
-세션을 대상으로 합니다. 정규식/LLM 마스킹과 공개 전 검수는 아직 구현 전이므로
-어댑터 출력은 공개용 데이터가 아닙니다.
+세션을 대상으로 합니다. 발행 경로에는 정규식 마스킹이 구현되어 있으나, 어댑터 출력 자체에는
+적용되지 않습니다. LLM 마스킹과 공개 전 검수는 후속 작업이며 어댑터 출력은 공개용 데이터가 아닙니다.
 
 ## 기술 스택
 
@@ -160,7 +172,7 @@ Remove-Item Env:BLOG_CLAUDE_LOG, Env:BLOG_CODEX_LOG
 | --- | --- |
 | Claude Code (Anthropic) | 설계 논의, 코드 구현, 커밋. 0번째 커밋부터 모든 개발 세션 로그를 보존해 메타 데모 데이터로 사용 |
 | Claude (claude.ai) | 기획 · 실행 계획 수립 · 인수인계 문서 작성 |
-| Codex (OpenAI) | 역할 B: rollout 어댑터·공통 이벤트 타입·fixture 테스트 구현, 로컬 로그 검증, 문서 갱신 |
+| Codex (OpenAI) | 역할 B: rollout 어댑터·공통 이벤트 타입·fixture 테스트 구현, 로컬 로그 검증, 공개 포트폴리오 UI·반응형 화면 구현, 문서 갱신 |
 
 ## 개발 규칙
 
