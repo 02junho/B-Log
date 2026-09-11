@@ -223,6 +223,49 @@ test("ordinary multiline JSON stdout is not treated as a desktop envelope", () =
   assert.equal(events[1].toolResults?.[0].isError, undefined);
 });
 
+test("settled desktop command results retain failures and successful sibling commits", () => {
+  const settled = (exit_code: number, output: string) => JSON.stringify({
+    status: "fulfilled", value: { chunk_id: "synthetic", wall_time_seconds: 1, exit_code, output },
+  });
+  const events = parse([
+    call("batch", "functions.exec", JSON.stringify({ cmd: "git commit -m 'fix: example'; npm test" })),
+    result("batch", [
+      { type: "input_text", text: "Script completed" },
+      { type: "input_text", text: settled(0, "[main abc1234] fix: example") },
+      { type: "input_text", text: settled(1, "synthetic test failure") },
+    ]),
+  ]);
+  assert.equal(events[1].toolResults?.[0].isError, true);
+  assert.deepEqual(events[1].gitCommit, { sha: "abc1234", message: "fix: example" });
+  assert.match(events[1].toolResults![0].output, /synthetic test failure/);
+});
+
+test("a single settled failed command never confirms a commit", () => {
+  const events = parse([
+    call("failed", "functions.exec", JSON.stringify({ cmd: "git commit -m fake" })),
+    result("failed", JSON.stringify({ status: "fulfilled", value: {
+      chunk_id: "synthetic", wall_time_seconds: 1, exit_code: -1,
+      output: "[main abc1234] fake",
+    } })),
+  ]);
+  assert.equal(events[1].toolResults?.[0].isError, true);
+  assert.equal(events[1].gitCommit, undefined);
+});
+
+test("settled application JSON inside stdout is not a host command result", () => {
+  const sample = JSON.stringify({ status: "fulfilled", value: { exit_code: 1, output: "sample" } });
+  const embeddedHost = JSON.stringify({ status: "fulfilled", value: {
+    chunk_id: "example", wall_time_seconds: 1, exit_code: 1, output: "sample",
+  } });
+  const events = parse([
+    call("plain"), result("plain", sample),
+    call("stdout"), result("stdout", JSON.stringify({
+      chunk_id: "real", wall_time_seconds: 1, exit_code: 0, output: embeddedHost,
+    })),
+  ]);
+  assert.ok(events.every(event => !event.toolResults?.some(item => item.isError)));
+});
+
 test("local rollout smoke check (opt-in; no raw content is printed or saved)", {
   skip: !process.env.BLOG_CODEX_LOG,
 }, () => {
