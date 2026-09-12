@@ -43,14 +43,25 @@ export interface JobRunResponse {
   error?: string;
 }
 
-/** POST /api/sessions/[id]/publish — match → publish를 순서대로 실행. */
+/** POST /api/sessions/[id]/publish — match → publish(초안 조립)를 순서대로 실행.
+ * 공개는 confirm이 확정한다. */
 export interface PublishResponse {
   sessionId: string;
   slug: string;
-  /** 공개 페이지 경로 (P3의 /p/[slug]). */
+  /** 공개 페이지 경로 (검수 확정 후에만 열림). */
   path: string;
+  /** 검수 화면 경로 — 업로드 플로우는 여기로 보낸다. */
+  reviewPath: string;
   matchJobId: string;
   publishJobId: string;
+}
+
+/** POST /api/sessions/[id]/confirm — 검수 확정: 초안을 공개로 전환. */
+export interface ConfirmResponse {
+  sessionId: string;
+  slug: string;
+  path: string;
+  publishedAt: string;
 }
 
 export interface ApiError {

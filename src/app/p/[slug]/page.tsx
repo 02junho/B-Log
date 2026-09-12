@@ -34,7 +34,15 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  const { view, demo } = await loadPortfolio((await params).slug);
+  // notFound()를 여기서 던지면 스트리밍 중이라 HTTP 상태가 200으로 굳는다
+  // (소프트 404). 메타데이터는 실패를 삼키고, 404는 페이지 본문이 던진다.
+  let result: Awaited<ReturnType<typeof loadPortfolio>>;
+  try {
+    result = await loadPortfolio((await params).slug);
+  } catch {
+    return { title: "B-Log", robots: { index: false, follow: false } };
+  }
+  const { view, demo } = result;
   return {
     title: `${view.title} | B-Log`,
     description: "AI와 협업한 판단과 실행의 과정을 살펴보세요.",

@@ -417,17 +417,18 @@ async function runPublish(db: Db, job: JobRow): Promise<ProcessResult> {
     }),
   );
 
-  // 세션당 포트폴리오 1개: 있으면 갱신, 없으면 생성.
+  // 세션당 포트폴리오 1개. 새로 만들면 **초안(published_at=null)** — 공개는
+  // 검수 확정(/api/sessions/[id]/confirm)이 한다. 이미 공개된 포트폴리오를
+  // 다시 발행하면 내용만 갱신하고 공개 상태는 유지한다.
   const { data: existing } = await db
     .from("portfolios")
     .select("id")
     .eq("session_id", job.session_id)
     .maybeSingle();
-  const now = new Date().toISOString();
   if (existing) {
     const { error } = await db
       .from("portfolios")
-      .update({ slug, title, view: JSON.parse(JSON.stringify(view)), published_at: now })
+      .update({ slug, title, view: JSON.parse(JSON.stringify(view)) })
       .eq("id", existing.id);
     if (error) throw new Error(`portfolio update failed: ${error.message}`);
   } else {
@@ -436,7 +437,7 @@ async function runPublish(db: Db, job: JobRow): Promise<ProcessResult> {
       slug,
       title,
       view: JSON.parse(JSON.stringify(view)),
-      published_at: now,
+      published_at: null,
     });
     if (error) throw new Error(`portfolio insert failed: ${error.message}`);
   }

@@ -1,8 +1,8 @@
 /**
- * POST /api/sessions/[id]/publish — 분석 완료(ready) 세션을 공개 페이지로 발행.
- * match 잡 → publish 잡을 순서대로 만들고 실행한다 (LLM 없음, 수 초).
- * 초안 한계: 사용자 검수 화면(Step 7) 없이 즉시 발행 — 검수 플로우가 생기면
- * 이 라우트는 검수 확정 후에만 호출되도록 P2·P3가 연결한다.
+ * POST /api/sessions/[id]/publish — 분석 완료(ready) 세션을 **검수용 초안**으로 조립.
+ * match 잡 → publish 잡을 순서대로 실행한다 (LLM 없음, 수 초).
+ * 여기서는 공개되지 않는다: portfolios 행은 published_at=null 초안으로 만들어지고,
+ * 사용자가 /sessions/[id]/review에서 확인한 뒤 confirm이 공개를 확정한다.
  */
 import { checkApiToken } from "@/lib/api/guard";
 import { processJob } from "@/lib/jobs/process";
@@ -64,6 +64,7 @@ export async function POST(
       sessionId: id,
       slug: portfolio?.slug ?? "",
       path: `/p/${portfolio?.slug ?? ""}`,
+      reviewPath: `/sessions/${id}/review`,
       matchJobId,
       publishJobId,
     } satisfies PublishResponse);
