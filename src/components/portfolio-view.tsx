@@ -17,9 +17,11 @@ import {
 export function PortfolioView({
   view,
   demo = false,
+  mode = "public",
 }: {
   view: Portfolio;
   demo?: boolean;
+  mode?: "public" | "review";
 }) {
   const [filter, setFilter] = useState<Stage | "all">("all");
   const [shareStatus, setShareStatus] = useState("");
@@ -32,6 +34,7 @@ export function PortfolioView({
     view.stats.byRole.assistant +
     view.stats.byRole.tool;
   async function share() {
+    if (mode === "review") return;
     const url = window.location.origin + window.location.pathname;
     try {
       await navigator.clipboard.writeText(url);
@@ -47,7 +50,7 @@ export function PortfolioView({
       <div className="breadcrumb">
         <Link href="/">홈</Link>
         <span>/</span>
-        <span>과정 포트폴리오</span>
+        <span>{mode === "review" ? "발행 전 미리보기" : "과정 포트폴리오"}</span>
       </div>
       {demo && (
         <div className="demo-notice">
@@ -86,6 +89,10 @@ export function PortfolioView({
           </div>
         </div>
         <div className="hero-actions">
+          {mode === "review" ? (
+            <p className="share-status">검수용 주소는 공유하지 마세요. 발행 확정 후 공개 페이지에서 링크를 복사할 수 있습니다.</p>
+          ) : (
+            <>
           <button className="button button-dark" onClick={share}>
             <span aria-hidden="true">↗</span> 링크 공유하기
           </button>
@@ -100,6 +107,8 @@ export function PortfolioView({
               readOnly
               onFocus={(e) => e.target.select()}
             />
+          )}
+            </>
           )}
         </div>
       </section>

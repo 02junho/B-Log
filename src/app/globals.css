@@ -1339,11 +1339,24 @@ input {
   flex-wrap: wrap;
   align-items: center;
 }
-.confirm-bar input {
+.confirm-bar input[type="password"] {
   border: 1px solid rgba(31, 42, 30, 0.2);
   border-radius: 8px;
   padding: 10px 12px;
   font: inherit;
+}
+.review-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex-basis: 100%;
+  line-height: 1.7;
+  font-size: 14px;
+}
+.review-consent input {
+  flex-shrink: 0;
+  margin-top: 6px;
+  accent-color: #20372e;
 }
 
 /* 커밋 매칭 방법 배지 — 추정을 확정처럼 보이지 않게 구분 */
