@@ -289,6 +289,14 @@ export function PortfolioView({
                       {item.commit && (
                         <div className="commit-reference">
                           <span aria-hidden="true">⑂</span>
+                          {item.commit.method && item.commit.method !== "log" && (
+                            <span
+                              className="commit-method"
+                              title="커밋 기록 시각과 대화 시각의 근접으로 추정한 연결입니다"
+                            >
+                              시간 추정
+                            </span>
+                          )}
                           {url ? (
                             <a
                               href={url}

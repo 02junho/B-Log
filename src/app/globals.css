@@ -1345,3 +1345,14 @@ input {
   padding: 10px 12px;
   font: inherit;
 }
+
+/* 커밋 매칭 방법 배지 — 추정을 확정처럼 보이지 않게 구분 */
+.commit-method {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(176, 128, 32, 0.12);
+  color: #7a5a16;
+  border: 1px solid rgba(176, 128, 32, 0.3);
+  white-space: nowrap;
+}

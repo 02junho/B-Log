@@ -24,8 +24,16 @@ export interface PortfolioView {
     summary: string;
     /** 원문 인용 (검증된 것만 — 원문에 그대로 존재). */
     quote?: string;
-    /** url은 repoUrl을 모르면 빈 문자열 — P3는 url이 있을 때만 링크를 건다. */
-    commit?: { sha: string; message: string; url: string };
+    /** url은 repoUrl을 모르면 빈 문자열 — P3는 url이 있을 때만 링크를 건다.
+     * method: 이 커밋이 어떻게 연결됐는지. "log" = git이 로그에서 직접 확인
+     * (정확), "time" = 타임스탬프 근접 추정, "embed" = 임베딩 유사도(미사용).
+     * 추정을 확정처럼 보이지 않게 P3는 log가 아니면 배지로 구분 표시한다. */
+    commit?: {
+      sha: string;
+      message: string;
+      url: string;
+      method?: "log" | "time" | "embed";
+    };
   }[];
   highlights: {
     stage: Stage;
@@ -36,6 +44,7 @@ export interface PortfolioView {
   stats: {
     events: number;
     toolCalls: number;
+    /** 타임라인에 연결된 서로 다른 커밋 수 (로그 확인 + 매칭 추정 합산). */
     commits: number;
     durationMin?: number;
     /** "AI 기여/인간 개입" 요약의 재료 (ROADMAP Step 7 화면 요구사항). */

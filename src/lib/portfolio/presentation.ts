@@ -34,7 +34,12 @@ export const portfolioDisplaySchema = z.object({
       summary: z.string(),
       quote: z.string().optional(),
       commit: z
-        .object({ sha: z.string(), message: z.string(), url: z.string() })
+        .object({
+          sha: z.string(),
+          message: z.string(),
+          url: z.string(),
+          method: z.enum(["log", "time", "embed"]).optional(),
+        })
         .optional(),
     }),
   ),
