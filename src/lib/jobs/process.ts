@@ -13,7 +13,7 @@ import type { BLogSession } from "../parser/schema";
 import { sessionStats } from "../parser/stats";
 import { chunkSession, type Chunk } from "../pipeline/chunk";
 import { tagSession, type TaggedFinding } from "../pipeline/tag";
-import { buildPortfolioView } from "../portfolio/build";
+import { buildPortfolioView, type MatchedCommit } from "../portfolio/build";
 import { fetchRepoCommits } from "../github/commits";
 import { matchFindings, type MatchInput } from "../match/stages";
 import { maskDeep } from "../masking/rules";
@@ -388,7 +388,7 @@ async function runPublish(db: Db, job: JobRow): Promise<ProcessResult> {
   const idxByChunkId = new Map((chunkRows ?? []).map((c) => [c.id, c.idx]));
   const { data: findingRows } = await db
     .from("findings")
-    .select("chunk_id, stage, summary, quote, confidence")
+    .select("id, chunk_id, stage, summary, quote, confidence")
     .eq("session_id", job.session_id);
   const findings: TaggedFinding[] = (findingRows ?? []).map((f) => ({
     chunkId: `c${String(idxByChunkId.get(f.chunk_id) ?? 0).padStart(3, "0")}`,
@@ -397,6 +397,35 @@ async function runPublish(db: Db, job: JobRow): Promise<ProcessResult> {
     quote: f.quote as TaggedFinding["quote"],
     confidence: f.confidence,
   }));
+
+  // 매칭 잡 결과를 finding별 최적 커밋 1개로 압축 (log > time > embed, 그다음 점수).
+  const findingIds = (findingRows ?? []).map((f) => f.id);
+  const matchedByFinding = new Map<string, MatchedCommit>();
+  if (findingIds.length > 0) {
+    const { data: matchRows } = await db
+      .from("matches")
+      .select("finding_id, method, score, commits(sha, message)")
+      .in("finding_id", findingIds);
+    const rank: Record<string, number> = { log: 0, time: 1, embed: 2 };
+    const sorted = [...(matchRows ?? [])].sort(
+      (a, b) =>
+        (rank[a.method] ?? 9) - (rank[b.method] ?? 9) ||
+        (b.score ?? 0) - (a.score ?? 0),
+    );
+    for (const m of sorted) {
+      if (matchedByFinding.has(m.finding_id)) continue;
+      const commit = m.commits as unknown as { sha: string; message: string } | null;
+      if (!commit) continue;
+      matchedByFinding.set(m.finding_id, {
+        sha: commit.sha,
+        message: commit.message,
+        method: m.method as MatchedCommit["method"],
+      });
+    }
+  }
+  const matchedCommits = (findingRows ?? []).map((f) =>
+    matchedByFinding.get(f.id),
+  );
 
   const { data: projectRow } = await db
     .from("sessions")
@@ -413,6 +442,7 @@ async function runPublish(db: Db, job: JobRow): Promise<ProcessResult> {
     buildPortfolioView(session, findings, {
       slug,
       title,
+      matchedCommits,
       ...(repoUrl ? { repoUrl } : {}),
     }),
   );

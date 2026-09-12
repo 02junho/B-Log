@@ -48,10 +48,23 @@ export function selectHighlights(
   return picked;
 }
 
+/** 매칭 잡(matches 테이블)이 찾아준 finding별 최적 커밋. findings와 같은 인덱스. */
+export interface MatchedCommit {
+  sha: string;
+  message: string;
+  method: "log" | "time" | "embed";
+}
+
 export function buildPortfolioView(
   session: BLogSession,
   findings: readonly TaggedFinding[],
-  meta: { slug: string; title: string; repoUrl?: string },
+  meta: {
+    slug: string;
+    title: string;
+    repoUrl?: string;
+    /** findings[i]에 대응하는 매칭 커밋 (없으면 undefined). */
+    matchedCommits?: readonly (MatchedCommit | undefined)[];
+  },
 ): PortfolioView {
   const stats = sessionStats(session);
   const events = eventById(session);
@@ -67,17 +80,30 @@ export function buildPortfolioView(
   ) as Record<Stage, string>;
 
   // 타임라인: 이벤트 순서(= id 순번)대로. 인용 이벤트의 ts·커밋을 붙인다.
-  const timeline = [...findings]
-    .sort((a, b) => a.quote.eventId.localeCompare(b.quote.eventId))
-    .map((f) => {
+  // 커밋 우선순위: ①이벤트에서 git이 직접 확인한 커밋(method: "log")
+  // ②매칭 잡이 찾아준 커밋(method는 매칭 방법 그대로 — 추정을 확정처럼 안 꾸민다).
+  const linkedShas = new Set<string>();
+  const timeline = findings
+    .map((f, i) => ({ f, matched: meta.matchedCommits?.[i] }))
+    .sort((a, b) => a.f.quote.eventId.localeCompare(b.f.quote.eventId))
+    .map(({ f, matched }) => {
       const ev = events.get(f.quote.eventId);
       const commit = ev?.gitCommit?.sha
         ? {
             sha: ev.gitCommit.sha,
             message: ev.gitCommit.message,
             url: commitUrl(meta.repoUrl, ev.gitCommit.sha),
+            method: "log" as const,
           }
-        : undefined;
+        : matched
+          ? {
+              sha: matched.sha,
+              message: matched.message,
+              url: commitUrl(meta.repoUrl, matched.sha),
+              method: matched.method,
+            }
+          : undefined;
+      if (commit) linkedShas.add(commit.sha);
       return {
         ...(ev?.ts ? { ts: ev.ts } : {}),
         stage: f.stage,
@@ -105,7 +131,9 @@ export function buildPortfolioView(
     stats: {
       events: stats.events,
       toolCalls: stats.toolCalls,
-      commits: stats.commits,
+      // 화면의 "연결된 커밋" = 타임라인에 실제로 연결된 서로 다른 커밋 수.
+      // 타임라인에 연결된 게 없으면 로그에서 확인된 커밋 수로 폴백.
+      commits: linkedShas.size > 0 ? linkedShas.size : stats.commits,
       ...(stats.durationMin !== undefined
         ? { durationMin: stats.durationMin }
         : {}),
