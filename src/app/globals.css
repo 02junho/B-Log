@@ -1226,3 +1226,93 @@ input {
     transition: none !important;
   }
 }
+
+/* ---------- 업로드 화면 (/new) ---------- */
+.upload-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 56px 20px 96px;
+}
+.upload-page h1 {
+  font-size: 2rem;
+  margin: 10px 0 12px;
+}
+.upload-lede {
+  color: var(--ink-soft, #5f6b5d);
+  line-height: 1.7;
+  margin-bottom: 28px;
+}
+.upload-card {
+  background: #fff;
+  border: 1px solid rgba(31, 42, 30, 0.12);
+  border-radius: 16px;
+  padding: 28px;
+}
+.upload-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.drop-zone {
+  display: block;
+  border: 1.5px dashed rgba(31, 42, 30, 0.28);
+  border-radius: 12px;
+  padding: 34px 18px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.drop-zone-over,
+.drop-zone:hover {
+  border-color: #2f4d2f;
+  background: rgba(47, 77, 47, 0.05);
+}
+.drop-zone input[type="file"] {
+  display: none;
+}
+.drop-zone small {
+  display: block;
+  margin-top: 8px;
+  color: rgba(31, 42, 30, 0.55);
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+.field em {
+  font-weight: 400;
+  font-style: normal;
+  color: rgba(31, 42, 30, 0.55);
+}
+.field input {
+  border: 1px solid rgba(31, 42, 30, 0.2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+}
+.upload-error {
+  color: #a03323;
+  background: rgba(160, 51, 35, 0.08);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.upload-progress .progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(31, 42, 30, 0.1);
+  overflow: hidden;
+}
+.upload-progress .progress-bar {
+  height: 100%;
+  background: #2f4d2f;
+  transition: width 0.4s;
+}
+.upload-progress p {
+  margin: 10px 0 2px;
+  font-weight: 600;
+}
+.upload-progress small {
+  color: rgba(31, 42, 30, 0.55);
+}
