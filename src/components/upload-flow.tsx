@@ -21,7 +21,7 @@ type Phase =
   | { kind: "idle" }
   | { kind: "working"; step: string; progress: number }
   | { kind: "failed"; message: string }
-  | { kind: "published"; path: string };
+  | { kind: "published"; reviewPath: string };
 
 const CODE_KEY = "blog-access-code";
 
@@ -118,13 +118,13 @@ export function UploadFlow() {
         });
       } while (tag.continue);
 
-      setPhase({ kind: "working", step: "커밋 매칭·마스킹·발행 중", progress: 90 });
+      setPhase({ kind: "working", step: "커밋 매칭·마스킹·초안 조립 중", progress: 90 });
       const published = await api<PublishResponse>(
         `/api/sessions/${up.sessionId}/publish`,
         code,
         { method: "POST" },
       );
-      setPhase({ kind: "published", path: published.path });
+      setPhase({ kind: "published", reviewPath: published.reviewPath });
     } catch (err) {
       setPhase({
         kind: "failed",
@@ -136,11 +136,14 @@ export function UploadFlow() {
   if (phase.kind === "published") {
     return (
       <section className="upload-card" aria-live="polite">
-        <span className="eyebrow">완성!</span>
-        <h2>과정 포트폴리오가 발행됐습니다.</h2>
-        <p>정규식 마스킹이 적용된 공개 페이지입니다. 게시 전에 내용을 꼭 확인하세요.</p>
-        <a className="button button-dark" href={phase.path}>
-          포트폴리오 보러 가기 <span aria-hidden="true">↗</span>
+        <span className="eyebrow">분석 완료</span>
+        <h2>검수 후 발행하면 공개됩니다.</h2>
+        <p>
+          마스킹이 적용된 초안이 준비됐습니다. 아직 공개 전이니, 내용을 확인하고
+          발행을 확정하세요.
+        </p>
+        <a className="button button-dark" href={phase.reviewPath}>
+          검수하러 가기 <span aria-hidden="true">↗</span>
         </a>
       </section>
     );
