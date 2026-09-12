@@ -13,6 +13,7 @@ export function SiteHeader() {
           <Link href="/p/sample-login-fix">
             포트폴리오 둘러보기 <span aria-hidden="true">↗</span>
           </Link>
+          <Link href="/new">내 로그 분석하기</Link>
         </nav>
       </div>
     </header>
