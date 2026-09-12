@@ -55,7 +55,7 @@ export default async function ReviewPage({
         publicPath={`/p/${data.slug}`}
         alreadyPublished={Boolean(data.published_at)}
       />
-      <PortfolioView view={parsed.data} />
+      <PortfolioView view={parsed.data} mode="review" />
     </>
   );
 }

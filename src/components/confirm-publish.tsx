@@ -1,7 +1,7 @@
 "use client";
 
 /** 검수 화면의 발행 확정 바. 액세스 코드는 업로드 화면과 같은 키를 재사용한다. */
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ConfirmResponse } from "@/lib/api/types";
 
 const CODE_KEY = "blog-access-code";
@@ -27,8 +27,12 @@ export function ConfirmPublish({
   const [state, setState] = useState<
     { kind: "idle" } | { kind: "busy" } | { kind: "done" } | { kind: "error"; message: string }
   >(alreadyPublished ? { kind: "done" } : { kind: "idle" });
+  const [reviewed, setReviewed] = useState(false);
+  const submitting = useRef(false);
 
   const confirm = async () => {
+    if (!reviewed || !code.trim() || submitting.current || state.kind === "done") return;
+    submitting.current = true;
     setState({ kind: "busy" });
     try {
       const res = await fetch(`/api/sessions/${sessionId}/confirm`, {
@@ -46,6 +50,8 @@ export function ConfirmPublish({
         kind: "error",
         message: err instanceof Error ? err.message : "알 수 없는 오류",
       });
+    } finally {
+      submitting.current = false;
     }
   };
 
@@ -62,6 +68,15 @@ export function ConfirmPublish({
 
   return (
     <div className="confirm-bar">
+      <label className="review-consent">
+        <input
+          type="checkbox"
+          checked={reviewed}
+          disabled={state.kind === "busy"}
+          onChange={(event) => setReviewed(event.target.checked)}
+        />
+        공개될 인용·요약·커밋을 확인했고, 개인정보나 공개하면 안 되는 내용이 없는지 검토했습니다.
+      </label>
       <input
         type="password"
         autoComplete="off"
@@ -69,12 +84,13 @@ export function ConfirmPublish({
         aria-label="액세스 코드"
         suppressHydrationWarning
         value={code}
+        disabled={state.kind === "busy"}
         onChange={(e) => setCode(e.target.value)}
       />
       <button
         type="button"
         className="button button-dark"
-        disabled={!code || state.kind === "busy"}
+        disabled={!code.trim() || !reviewed || state.kind === "busy"}
         onClick={() => void confirm()}
       >
         {state.kind === "busy" ? "발행 중…" : "이대로 발행 확정"}
