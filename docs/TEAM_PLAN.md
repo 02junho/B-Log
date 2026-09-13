@@ -2,16 +2,17 @@
 
 > 기준일 2026-09-08(월). 제출 마감 **9/20(일)** 까지 13일. 단계 정의는 [ROADMAP.md](ROADMAP.md)를 따른다.
 > 이 문서는 "누가 · 무엇을 · 언제까지"만 다룬다. 결정 근거는 ROADMAP과 [CLAUDE.md](../CLAUDE.md)에 있다.
-> 진행 상황 갱신: 2026-09-12, main `e5bcbc2` 및 `codex/public-portfolio-ui` 작업 기준. 최신 팀 현황·역할 B의 공개 UI 지원·연결 과제는 [FRONTEND_HANDOFF.md](FRONTEND_HANDOFF.md)를 우선 확인한다. 아래 9/9 현황과 날짜별 표는 당시 기록이다.
+> 진행 상황 갱신: 2026-09-13, main `03b53a2`, PR #18 및 `codex/github-auth-ownership` 작업 기준. 최신 팀 현황·역할 B의 공개 UI 지원·연결 과제는 [FRONTEND_HANDOFF.md](FRONTEND_HANDOFF.md)를 우선 확인한다. 아래 9/9 현황과 날짜별 표는 당시 기록이다.
 
 ## 0. 전제
 
 최신 코드 점검(`03b53a2`): PR #13~17 병합으로 업로드·검수·공개 UI와 OG, 커밋 매칭 표시까지 추가됐다.
-역할 B는 `codex/review-flow-hardening`에서 검수 화면의 공유·확인 동작을 보강한다.
-OAuth와 소유자 검사 및 실제 화면 E2E가 다음 우선순위다. 세부 내용은 [FRONTEND_HANDOFF.md](FRONTEND_HANDOFF.md)를 따른다.
+역할 B는 PR #18의 `codex/review-flow-hardening`에서 검수 화면의 공유·확인 동작을 보강했다.
+후속 `codex/github-auth-ownership`에서 OAuth와 소유자 검사를 구현했으며 실제 계정 화면 E2E가 다음 우선순위다. 세부 내용은 [FRONTEND_HANDOFF.md](FRONTEND_HANDOFF.md)를 따른다.
 
 9/13 역할 B 후속: `codex/github-auth-ownership`에서 GitHub OAuth와 소유자 검사를 구현했다.
 Supabase GitHub provider와 프로덕션·로컬 Redirect URL은 9/13에 설정했다. 실제 계정 E2E와 Vercel 환경은 팀 인프라 담당과 함께 확인한다.
+GitHub OAuth App은 역할 B의 `Aio1135` 계정이 관리한다. 노출된 첫 Secret은 폐기했고 새 Secret만 Supabase에 연결했으며 비밀값은 레포에 저장하지 않았다.
 
 - 현재 위치 (9/9 저녁): Step 1~4 완료. **파서 통합·CLI와 Solar Pro 4 단독 결정, 태깅 엔진·PortfolioView·합성 fixtures까지 완료**했다. Step 5는 DB 초안 검토 단계이며 업로드·잡 API가 9/12 API E2E의 병목이다.
 - 4개 역할은 **서로 다른 폴더를 소유**한다. 겹치는 부분은 9/8 킥오프에서 정하는 "계약(§3)"으로만 연결한다. 계약이 정해지면 각자 상대를 기다리지 않고 진행할 수 있다.
