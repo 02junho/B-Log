@@ -3,9 +3,12 @@
  *
  *   npm run portfolio -- <log file> [--title "..."] [--slug my-slug]
  *     [--repo https://github.com/owner/repo] [--concurrency 5] [--out <file>]
+ *     [--mask]
  *
- * 실제 LLM(태깅)을 호출한다. 출력은 마스킹 전이므로 `.parsed/`(gitignored)
- * 기본 — 레포에 커밋하거나 공유하기 전에 반드시 내용을 검수할 것.
+ * 실제 LLM(태깅)을 호출한다. 기본 출력은 **마스킹 전**이므로 `.parsed/`
+ * (gitignored) 기본 — 레포에 커밋하거나 공유하기 전에 반드시 내용을 검수할 것.
+ * `--mask`를 주면 발행 경로와 같은 1차(정규식)+2차(LLM) 마스킹을 적용한다.
+ * 공개할 데모(Step 8 3종)를 만들 때는 반드시 --mask 를 쓴다.
  * P3 fixtures와 Step 8 데모 3종의 생산 도구다.
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -15,6 +18,7 @@ import { chunkSession } from "../src/lib/pipeline/chunk";
 import { tagSession } from "../src/lib/pipeline/tag";
 import { estimateCostUsd, MAIN_PROVIDER } from "../src/lib/pipeline/llm";
 import { buildPortfolioView } from "../src/lib/portfolio/build";
+import { maskPortfolio } from "../src/lib/masking/detect";
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
@@ -37,6 +41,7 @@ async function main(): Promise<void> {
   const repoUrl = flag("repo");
   const concurrency = Number(flag("concurrency") ?? 5);
   const out = flag("out") ?? join(".parsed", "portfolio", `${slug}.json`);
+  const wantMask = argv.includes("--mask");
 
   const t0 = Date.now();
   const session = parseSession(readFileSync(logFile, "utf8").split("\n"));
@@ -52,11 +57,28 @@ async function main(): Promise<void> {
         console.log(`  태깅 ${done}/${total}`);
     },
   });
-  const view = buildPortfolioView(session, tagged.findings, {
+  const built = buildPortfolioView(session, tagged.findings, {
     slug,
     title,
     ...(repoUrl ? { repoUrl } : {}),
   });
+  const { masked, report } = wantMask
+    ? await maskPortfolio(built)
+    : { masked: built, report: null };
+  const view = report
+    ? {
+        ...masked,
+        masking: {
+          level: report.level,
+          regexTotal: report.regexTotal,
+          llmApplied: report.llmApplied,
+          llmRejected: report.llmRejected,
+          ...(report.degradedReason
+            ? { degradedReason: report.degradedReason }
+            : {}),
+        },
+      }
+    : masked;
 
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, JSON.stringify(view, null, 2));
@@ -73,7 +95,11 @@ async function main(): Promise<void> {
       `findings ${tagged.findings.length}개 (미검증 인용 ${dropped}개 제외), 실패 청크 ${tagged.failedChunks.length}개`,
       `하이라이트 ${view.highlights.length}개, 타임라인 ${view.timeline.length}줄`,
       `소요 ${((Date.now() - t0) / 1000).toFixed(1)}s, 비용 ~$${cost.toFixed(4)}`,
-      `출력: ${out} (마스킹 전 — 공유 전 검수 필수)`,
+      report
+        ? `마스킹: 정규식 ${report.regexTotal}건, AI ${report.llmApplied}건` +
+          (report.degradedReason ? ` — 열화(${report.degradedReason})` : "")
+        : "마스킹: 적용 안 함 (--mask 로 적용)",
+      `출력: ${out} (공유 전 검수 필수)`,
     ].join("\n"),
   );
 }
