@@ -10,6 +10,33 @@ export interface RepoCommit {
   message: string;
   authoredAt?: string;
   files?: string[];
+  /**
+   * GitHub이 커밋 작성자로 확인한 계정 (문자열 id). git 이메일이 GitHub 계정에
+   * 연결돼 있지 않으면 없다 — 그 커밋은 누구 것인지 확인할 수 없다.
+   */
+  authorId?: string;
+  authorLogin?: string;
+  /** 부모가 둘 이상 = 머지 커밋. 웹 UI 머지는 버튼을 누른 사람이 작성자가 된다. */
+  isMerge?: boolean;
+}
+
+/** GET /repos/{owner}/{repo}/commits 응답 중 쓰는 필드만. */
+export interface GitHubCommitResponse {
+  sha: string;
+  commit: { message: string; author?: { date?: string } | null };
+  author?: { id?: number; login?: string } | null;
+  parents?: { sha: string }[];
+}
+
+export function toRepoCommit(c: GitHubCommitResponse): RepoCommit {
+  return {
+    sha: c.sha,
+    message: c.commit.message.split("\n")[0],
+    ...(c.commit.author?.date ? { authoredAt: c.commit.author.date } : {}),
+    ...(typeof c.author?.id === "number" ? { authorId: String(c.author.id) } : {}),
+    ...(c.author?.login ? { authorLogin: c.author.login } : {}),
+    isMerge: (c.parents?.length ?? 0) > 1,
+  };
 }
 
 /** https://github.com/owner/repo(.git) → {owner, repo}. 아니면 null. */
@@ -38,17 +65,8 @@ export async function fetchRepoCommits(repoUrl: string): Promise<RepoCommit[]> {
     );
     if (res.status === 404) throw new Error("repo not found or private");
     if (!res.ok) throw new Error(`GitHub API ${res.status}`);
-    const body = (await res.json()) as {
-      sha: string;
-      commit: { message: string; author?: { date?: string } };
-    }[];
-    for (const c of body) {
-      commits.push({
-        sha: c.sha,
-        message: c.commit.message.split("\n")[0],
-        authoredAt: c.commit.author?.date,
-      });
-    }
+    const body = (await res.json()) as GitHubCommitResponse[];
+    for (const c of body) commits.push(toRepoCommit(c));
     if (body.length < 100) break;
   }
   return commits;
