@@ -16,19 +16,19 @@ Build-Log라는 이름처럼, 도구가 아니라 **빌드 과정**이 주인공
 
 ## 팀
 
-| 이름 | GitHub | 역할 |
-| --- | --- | --- |
-| 준호 | [@02junho](https://github.com/02junho) | 기획 · 파이프라인 · 배포 |
+| 이름    | GitHub                                 | 역할                                                                               |
+| ------- | -------------------------------------- | ---------------------------------------------------------------------------------- |
+| 준호    | [@02junho](https://github.com/02junho) | 기획 · 파이프라인 · 배포                                                           |
 | Aio1135 | [@Aio1135](https://github.com/Aio1135) | 역할 B: Codex rollout 어댑터 · fixture 테스트 · 파서 검증, 공개 포트폴리오 UI 지원 |
-| (팀원) | @ | |
+| (팀원)  | @                                      |                                                                                    |
 
 ## 입력 방식 (MVP: 입구 3개, 스키마 1개)
 
-| 입구 | 대상 | 분석 등급 |
-| --- | --- | --- |
-| Claude Code 어댑터 | `~/.claude/projects/<project>/*.jsonl` | 정밀 분석 (시간 · 도구 호출 · 파일 변경 포함) |
-| Codex CLI 어댑터 | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` | 정밀 분석 |
-| 범용 대화록 | 텍스트 · 마크다운 붙여넣기, ChatGPT 등 내보내기 파일 | 요약 분석 (태깅 · 하이라이트 · 마스킹은 동일, 커밋 매칭은 텍스트 유사도만) |
+| 입구               | 대상                                                 | 분석 등급                                                                  |
+| ------------------ | ---------------------------------------------------- | -------------------------------------------------------------------------- |
+| Claude Code 어댑터 | `~/.claude/projects/<project>/*.jsonl`               | 정밀 분석 (시간 · 도구 호출 · 파일 변경 포함)                              |
+| Codex CLI 어댑터   | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`       | 정밀 분석                                                                  |
+| 범용 대화록        | 텍스트 · 마크다운 붙여넣기, ChatGPT 등 내보내기 파일 | 요약 분석 (태깅 · 하이라이트 · 마스킹은 동일, 커밋 매칭은 텍스트 유사도만) |
 
 - 정형 로그 2종의 어댑터와 형식 자동 판별은 구현됐습니다. 범용 대화록 입구는 구현 예정입니다.
 - 포트폴리오 페이지에는 **분석 등급 배지**를 표시합니다. 정형 로그를 주면 더 정밀해진다는 것을 숨기지 않습니다.
@@ -45,18 +45,18 @@ Build-Log라는 이름처럼, 도구가 아니라 **빌드 과정**이 주인공
 import { parseSession, detectFormat } from "@/lib/parser";
 
 const lines = contents.split(/\r?\n/);
-const session = parseSession(lines);          // 형식 자동 판별
-const codex = parseSession(lines, "codex");   // 형식 강제
+const session = parseSession(lines); // 형식 자동 판별
+const codex = parseSession(lines, "codex"); // 형식 강제
 ```
 
-| 파일 | 역할 |
-| --- | --- |
-| `src/lib/parser/schema.ts` | 공통 타입 `BLogSession` · `BLogEvent` (TEAM_PLAN §3.1 계약) |
-| `src/lib/parser/detect.ts` | 첫 30줄의 레코드 타입으로 입구 판별 |
-| `src/lib/parser/adapters/claude-code.ts` | Claude Code JSONL 어댑터 |
-| `src/lib/parser/adapters/codex.ts` | Codex rollout JSONL 어댑터 |
-| `src/lib/parser/git.ts` | 로그 안의 커밋 확정 추출 (커밋 매칭 1단계) |
-| `src/lib/parser/stats.ts` | 이벤트·도구·커밋 통계 (`PortfolioView.stats` 재료) |
+| 파일                                     | 역할                                                        |
+| ---------------------------------------- | ----------------------------------------------------------- |
+| `src/lib/parser/schema.ts`               | 공통 타입 `BLogSession` · `BLogEvent` (TEAM_PLAN §3.1 계약) |
+| `src/lib/parser/detect.ts`               | 첫 30줄의 레코드 타입으로 입구 판별                         |
+| `src/lib/parser/adapters/claude-code.ts` | Claude Code JSONL 어댑터                                    |
+| `src/lib/parser/adapters/codex.ts`       | Codex rollout JSONL 어댑터                                  |
+| `src/lib/parser/git.ts`                  | 로그 안의 커밋 확정 추출 (커밋 매칭 1단계)                  |
+| `src/lib/parser/stats.ts`                | 이벤트·도구·커밋 통계 (`PortfolioView.stats` 재료)          |
 
 어댑터 인터페이스는 함수 하나입니다: `(lines: string[]) => BLogSession`.
 파일 읽기, 형식 판별, 마스킹은 어댑터 밖에서 처리합니다. 범용 대화록 입구는
@@ -126,7 +126,8 @@ npm run parse -- <로그 파일> --format codex             # 자동 판별 대�
 4단계 요약·하이라이트·필터 가능한 타임라인·통계·분석 등급·링크 공유와 모바일 화면을 제공합니다.
 
 합성 데모는 DB 없이 열립니다. 실제 발행 결과 조회는 서버의 Supabase 환경 설정이 필요합니다.
-업로드·검수·OAuth 화면은 후속 작업이며, 서버용 `BLOG_API_TOKEN`은 브라우저에 전달하지 않습니다.
+`/login`에서 GitHub로 로그인하면 `/new`의 업로드·분석과 소유자 전용 검수 화면을 이용할 수 있습니다.
+Supabase Auth의 GitHub provider와 프로덕션·로컬 Redirect URL은 9/13에 설정했습니다. 실제 계정 로그인부터 발행까지의 브라우저 E2E는 배포 환경 변수 반영 후 확인합니다.
 팀별 현황과 연결할 작업은 [프론트엔드 인수인계](docs/FRONTEND_HANDOFF.md)를 참고하세요.
 
 ## 검증
@@ -168,11 +169,11 @@ Remove-Item Env:BLOG_CLAUDE_LOG, Env:BLOG_CODEX_LOG
 
 > 대회 제출서의 필수 기재 항목입니다. 새 도구를 쓰기 시작하면 **반드시 여기에 추가**합니다.
 
-| 도구 | 용도 |
-| --- | --- |
-| Claude Code (Anthropic) | 설계 논의, 코드 구현, 커밋. 0번째 커밋부터 모든 개발 세션 로그를 보존해 메타 데모 데이터로 사용 |
-| Claude (claude.ai) | 기획 · 실행 계획 수립 · 인수인계 문서 작성 |
-| Codex (OpenAI) | 역할 B: rollout 어댑터·공통 이벤트 타입·fixture 테스트 구현, 로컬 로그 검증, 공개 포트폴리오 UI·반응형 화면 구현, 문서 갱신 |
+| 도구                    | 용도                                                                                                                        |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Claude Code (Anthropic) | 설계 논의, 코드 구현, 커밋. 0번째 커밋부터 모든 개발 세션 로그를 보존해 메타 데모 데이터로 사용                             |
+| Claude (claude.ai)      | 기획 · 실행 계획 수립 · 인수인계 문서 작성                                                                                  |
+| Codex (OpenAI)          | 역할 B: rollout 어댑터·공통 이벤트 타입·fixture 테스트 구현, 로컬 로그 검증, 공개 포트폴리오 UI·반응형 화면 구현, 문서 갱신 |
 
 ## 개발 규칙
 

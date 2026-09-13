@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^3.0.45",
+    "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.115.0",
     "ai": "^7.0.94",
     "next": "16.3.4",

@@ -1,9 +1,10 @@
 /**
  * POST /api/jobs/[id]/run — 잡을 한 배치 실행.
  * continue=true면 클라이언트가 다시 호출해 이어간다 (jobs.next_idx가 재개 지점).
- * 초안 한계(P2 검토 항목): 인증 없음, 동시 run 호출에 대한 잠금은 status 검사뿐.
+ * 로그인 및 세션 소유자 확인 후 실행한다.
  */
-import { checkApiToken } from "@/lib/api/guard";
+import { authenticate } from "@/lib/auth/api";
+import { requireSessionOwner } from "@/lib/auth/access";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { processJob } from "@/lib/jobs/process";
 import type { ApiError, JobRunResponse } from "@/lib/api/types";
@@ -15,11 +16,13 @@ export async function POST(
   request: Request,
   ctx: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const denied = checkApiToken(request);
-  if (denied) return denied;
+  const auth = await authenticate(request);
+  if (auth instanceof Response) return auth;
   const db = getSupabaseServerClient();
   if (!db) {
-    return Response.json({ error: "db not configured" } satisfies ApiError, { status: 503 });
+    return Response.json({ error: "db not configured" } satisfies ApiError, {
+      status: 503,
+    });
   }
   const { id } = await ctx.params;
 
@@ -29,8 +32,12 @@ export async function POST(
     .eq("id", id)
     .single();
   if (error || !job) {
-    return Response.json({ error: "job not found" } satisfies ApiError, { status: 404 });
+    return Response.json({ error: "job not found" } satisfies ApiError, {
+      status: 404,
+    });
   }
+  const denied = await requireSessionOwner(db, job.session_id, auth.userId);
+  if (denied) return denied;
   if (job.status === "done" || job.status === "failed") {
     return Response.json({
       id: job.id,

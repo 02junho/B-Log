@@ -3,7 +3,8 @@
  * publish가 만든 초안(published_at=null)을 공개로 전환한다.
  * 이미 공개된 포트폴리오에 다시 호출하면 그대로 성공을 돌려준다(멱등).
  */
-import { checkApiToken } from "@/lib/api/guard";
+import { authenticate } from "@/lib/auth/api";
+import { requireSessionOwner } from "@/lib/auth/access";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { ApiError, ConfirmResponse } from "@/lib/api/types";
 
@@ -11,13 +12,17 @@ export async function POST(
   request: Request,
   ctx: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const denied = checkApiToken(request);
-  if (denied) return denied;
+  const auth = await authenticate(request);
+  if (auth instanceof Response) return auth;
   const db = getSupabaseServerClient();
   if (!db) {
-    return Response.json({ error: "db not configured" } satisfies ApiError, { status: 503 });
+    return Response.json({ error: "db not configured" } satisfies ApiError, {
+      status: 503,
+    });
   }
   const { id } = await ctx.params;
+  const denied = await requireSessionOwner(db, id, auth.userId);
+  if (denied) return denied;
 
   const { data: portfolio, error } = await db
     .from("portfolios")
@@ -25,7 +30,9 @@ export async function POST(
     .eq("session_id", id)
     .maybeSingle();
   if (error) {
-    return Response.json({ error: error.message } satisfies ApiError, { status: 500 });
+    return Response.json({ error: error.message } satisfies ApiError, {
+      status: 500,
+    });
   }
   if (!portfolio) {
     return Response.json(
@@ -42,7 +49,9 @@ export async function POST(
       .update({ published_at: publishedAt })
       .eq("id", portfolio.id);
     if (uErr) {
-      return Response.json({ error: uErr.message } satisfies ApiError, { status: 500 });
+      return Response.json({ error: uErr.message } satisfies ApiError, {
+        status: 500,
+      });
     }
   }
 

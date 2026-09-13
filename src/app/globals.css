@@ -1260,7 +1260,9 @@ input {
   padding: 34px 18px;
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 .drop-zone-over,
 .drop-zone:hover {
@@ -1338,12 +1340,6 @@ input {
   gap: 10px;
   flex-wrap: wrap;
   align-items: center;
-}
-.confirm-bar input[type="password"] {
-  border: 1px solid rgba(31, 42, 30, 0.2);
-  border-radius: 8px;
-  padding: 10px 12px;
-  font: inherit;
 }
 .review-consent {
   display: flex;
