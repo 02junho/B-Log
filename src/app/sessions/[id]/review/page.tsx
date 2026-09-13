@@ -47,7 +47,7 @@ export default async function ReviewPage({
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeader authenticated />
       <div className="review-banner" role="status">
         <strong>발행 전 검수</strong>
         <span>
