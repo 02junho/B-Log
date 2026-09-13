@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { getAuthUser } from "@/lib/supabase/auth";
+import { ownsSession } from "@/lib/auth/access";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { portfolioDisplaySchema } from "@/lib/portfolio/presentation";
 import { PortfolioView } from "@/components/portfolio-view";
@@ -17,8 +19,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /**
  * 발행 전 검수 화면. 초안(published_at=null)을 공개 페이지와 똑같이 렌더해
  * 보여주고, "발행 확정"이 confirm API를 호출한다.
- * URL은 세션 UUID라서 추측이 사실상 불가능하지만 링크 공유는 금물 —
- * OAuth(후속)가 붙으면 소유자 검사로 바뀐다.
+ * 초안을 읽기 전에 인증된 사용자와 프로젝트 소유자가 같은지 검사한다.
  */
 export default async function ReviewPage({
   params,
@@ -27,8 +28,12 @@ export default async function ReviewPage({
 }) {
   const { id } = await params;
   if (!UUID.test(id)) notFound();
+  const user = await getAuthUser();
+  if (!user)
+    redirect(`/login?next=${encodeURIComponent(`/sessions/${id}/review`)}`);
   const db = getSupabaseServerClient();
   if (!db) throw new Error("Review unavailable");
+  if (!(await ownsSession(db, id, user.id))) notFound();
 
   const { data, error } = await db
     .from("portfolios")

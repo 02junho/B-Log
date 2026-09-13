@@ -10,18 +10,21 @@
 역할 B는 `codex/review-flow-hardening`에서 검수 화면의 공유·확인 동작을 보강한다.
 OAuth와 소유자 검사 및 실제 화면 E2E가 다음 우선순위다. 세부 내용은 [FRONTEND_HANDOFF.md](FRONTEND_HANDOFF.md)를 따른다.
 
+9/13 역할 B 후속: `codex/github-auth-ownership`에서 GitHub OAuth와 소유자 검사를 구현했다.
+Supabase GitHub provider와 프로덕션·로컬 Redirect URL은 9/13에 설정했다. 실제 계정 E2E와 Vercel 환경은 팀 인프라 담당과 함께 확인한다.
+
 - 현재 위치 (9/9 저녁): Step 1~4 완료. **파서 통합·CLI와 Solar Pro 4 단독 결정, 태깅 엔진·PortfolioView·합성 fixtures까지 완료**했다. Step 5는 DB 초안 검토 단계이며 업로드·잡 API가 9/12 API E2E의 병목이다.
 - 4개 역할은 **서로 다른 폴더를 소유**한다. 겹치는 부분은 9/8 킥오프에서 정하는 "계약(§3)"으로만 연결한다. 계약이 정해지면 각자 상대를 기다리지 않고 진행할 수 있다.
 - 전원 AI 코딩 도구(Claude Code 또는 Codex)로 개발하고 세션 로그를 보존한다. 4명의 로그 전부가 메타 데모(데모 ①)의 재료다.
 
 ### 팀 작업 현황 (9/9 당시 기록 — 최신은 FRONTEND_HANDOFF.md)
 
-| 영역 | 확인된 완료 내용 | 다음 작업 |
-| --- | --- | --- |
-| P1 파서·파이프라인 | PR #1~3 main 반영. 스키마 통합·Claude Code 어댑터·자동 판별·CLI, 청킹·Solar 태깅·인용 검증, PortfolioView 빌더·화면용 fixture | P2 잡 API 연결 지원, 통합 오류 대응 |
-| P2 데이터·백엔드 | DB 초안은 `origin/feat/p2-db-schema`에 있음. ROADMAP은 PR #4 검토 대기로 기록하며 main에는 아직 미반영 | DB 초안 검토·적용, 업로드·잡 API, GitHub 조회·커밋 매칭 |
-| P3 화면 | `fixtures/portfolio.sample.json`과 PortfolioView 계약 사용 가능. main에는 제품 화면 완료 구현이 확인되지 않음 | fixture로 랜딩·업로드·검수·공개 페이지 구현, 이후 API 연결 |
-| P4 품질·데모 | 모델 결정과 평가 도구는 P1 작업으로 확보. 마스킹 구현은 main에서 확인되지 않음 | Solar 프롬프트 전후 평가, 정규식 마스킹, 데모 검수·제출 준비 |
+| 영역               | 확인된 완료 내용                                                                                                              | 다음 작업                                                    |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| P1 파서·파이프라인 | PR #1~3 main 반영. 스키마 통합·Claude Code 어댑터·자동 판별·CLI, 청킹·Solar 태깅·인용 검증, PortfolioView 빌더·화면용 fixture | P2 잡 API 연결 지원, 통합 오류 대응                          |
+| P2 데이터·백엔드   | DB 초안은 `origin/feat/p2-db-schema`에 있음. ROADMAP은 PR #4 검토 대기로 기록하며 main에는 아직 미반영                        | DB 초안 검토·적용, 업로드·잡 API, GitHub 조회·커밋 매칭      |
+| P3 화면            | `fixtures/portfolio.sample.json`과 PortfolioView 계약 사용 가능. main에는 제품 화면 완료 구현이 확인되지 않음                 | fixture로 랜딩·업로드·검수·공개 페이지 구현, 이후 API 연결   |
+| P4 품질·데모       | 모델 결정과 평가 도구는 P1 작업으로 확보. 마스킹 구현은 main에서 확인되지 않음                                                | Solar 프롬프트 전후 평가, 정규식 마스킹, 데모 검수·제출 준비 |
 
 위 표는 원격 main과 확인 가능한 브랜치 기준이며 팀원의 미공개 로컬 작업 여부를 뜻하지 않는다.
 PR #4의 실시간 리뷰 상태는 별도 확인이 필요하다. ROADMAP의 테스트 48개 통과 기록은
@@ -29,12 +32,12 @@ PR #4의 실시간 리뷰 상태는 별도 확인이 필요하다. ROADMAP의 �
 
 ## 1. 역할
 
-| 역할 | 담당자 | 한 줄 책임 | 소유 폴더 |
-| --- | --- | --- | --- |
-| **P1 리드 · 파이프라인 코어** | 준호 (@02junho) | 로그를 공통 스키마로 바꾸고 4단계 태깅까지 돌리는 엔진. 인프라 계정 소유, 최종 결정, main 머지 | `src/lib/parser/`, `src/lib/pipeline/`, `scripts/parse-*.ts`, `docs/` |
-| **P2 백엔드 · 데이터** | (이름) | DB 스키마, 업로드→저장→잡 처리, 커밋 조회·매칭, 인증 | `supabase/migrations/`, `src/lib/supabase/`, `src/lib/jobs/`, `src/lib/github/`, `src/lib/match/`, `src/app/api/`, `src/app/auth/` |
-| **P3 프론트 · 포트폴리오 페이지** | (이름) | 랜딩, 업로드·진행 화면, 검수 화면, 공개 포트폴리오 페이지, OG, 모바일 | `src/app/(site)/`, `src/app/p/`, `src/components/`, `src/app/opengraph-image.tsx`, `fixtures/` |
-| **P4 품질 · 데모 · 제출** | (이름) | 모델 비교와 프롬프트, 마스킹 규칙, 데모 3종, 제출서·스크린샷·운영 | `scripts/eval/`, `src/lib/prompts/`, `src/lib/masking/`, `docs/SUBMISSION.md`, `public/demo/` |
+| 역할                              | 담당자          | 한 줄 책임                                                                                     | 소유 폴더                                                                                                                          |
+| --------------------------------- | --------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **P1 리드 · 파이프라인 코어**     | 준호 (@02junho) | 로그를 공통 스키마로 바꾸고 4단계 태깅까지 돌리는 엔진. 인프라 계정 소유, 최종 결정, main 머지 | `src/lib/parser/`, `src/lib/pipeline/`, `scripts/parse-*.ts`, `docs/`                                                              |
+| **P2 백엔드 · 데이터**            | (이름)          | DB 스키마, 업로드→저장→잡 처리, 커밋 조회·매칭, 인증                                           | `supabase/migrations/`, `src/lib/supabase/`, `src/lib/jobs/`, `src/lib/github/`, `src/lib/match/`, `src/app/api/`, `src/app/auth/` |
+| **P3 프론트 · 포트폴리오 페이지** | (이름)          | 랜딩, 업로드·진행 화면, 검수 화면, 공개 포트폴리오 페이지, OG, 모바일                          | `src/app/(site)/`, `src/app/p/`, `src/components/`, `src/app/opengraph-image.tsx`, `fixtures/`                                     |
+| **P4 품질 · 데모 · 제출**         | (이름)          | 모델 비교와 프롬프트, 마스킹 규칙, 데모 3종, 제출서·스크린샷·운영                              | `scripts/eval/`, `src/lib/prompts/`, `src/lib/masking/`, `docs/SUBMISSION.md`, `public/demo/`                                      |
 
 역할 간 의존은 아래 한 방향으로만 흐른다. 거꾸로 기다리는 일이 생기면 계약(§3)이 덜 정해진 것이니 그날 저녁 싱크에서 푼다.
 
@@ -142,16 +145,16 @@ P1 파서·태깅 ──▶ P2 저장·잡·매칭 ──▶ P3 페이지 렌더
 
 ## 2. 마일스톤
 
-| 날짜 | 마일스톤 | 판정 기준 |
-| --- | --- | --- |
-| 9/8(월) | 킥오프 · 계약 확정 | §3의 4개 계약이 레포에 커밋됨. 4명 모두 로컬 `npm run dev` 성공 |
-| 9/10(수) | 모델 결정 | 비교표 기반으로 메인 모델·프롬프트 v1 확정, 세션당 비용 추정 |
-| 9/12(금) | 파이프라인 E2E (API) | 실제 로그 업로드 → 잡 완료 → portfolios 행 생성. UI 없이 curl로 |
-| 9/14(일) | **웹 E2E 1회전 (중간 점검)** | 브라우저에서 업로드 → 검수 → 공개 페이지까지. 실행계획서의 중간 점검일 |
-| 9/16(화) | 데모 3종 공개 | 로그인 없이 랜딩에서 30초 안에 데모가 보임. 스크린샷 4장 촬영 |
-| 9/17(수) | **가제출** | 대회 사이트에 '제출' 상태(임시저장 아님). 상태 스크린샷 보관 |
-| 9/18(목) | 참가 접수 마감 | 4명 모두 대회 사이트 팀 등록 확인 |
-| 9/20(일) 오전 | 최종 확정 | 새 기능 금지, 최종 스크린샷·문구 갱신, 이후 수정 불가 |
+| 날짜          | 마일스톤                     | 판정 기준                                                              |
+| ------------- | ---------------------------- | ---------------------------------------------------------------------- |
+| 9/8(월)       | 킥오프 · 계약 확정           | §3의 4개 계약이 레포에 커밋됨. 4명 모두 로컬 `npm run dev` 성공        |
+| 9/10(수)      | 모델 결정                    | 비교표 기반으로 메인 모델·프롬프트 v1 확정, 세션당 비용 추정           |
+| 9/12(금)      | 파이프라인 E2E (API)         | 실제 로그 업로드 → 잡 완료 → portfolios 행 생성. UI 없이 curl로        |
+| 9/14(일)      | **웹 E2E 1회전 (중간 점검)** | 브라우저에서 업로드 → 검수 → 공개 페이지까지. 실행계획서의 중간 점검일 |
+| 9/16(화)      | 데모 3종 공개                | 로그인 없이 랜딩에서 30초 안에 데모가 보임. 스크린샷 4장 촬영          |
+| 9/17(수)      | **가제출**                   | 대회 사이트에 '제출' 상태(임시저장 아님). 상태 스크린샷 보관           |
+| 9/18(목)      | 참가 접수 마감               | 4명 모두 대회 사이트 팀 등록 확인                                      |
+| 9/20(일) 오전 | 최종 확정                    | 새 기능 금지, 최종 스크린샷·문구 갱신, 이후 수정 불가                  |
 
 ## 3. 계약 (9/8 킥오프에서 확정, 이후 변경은 저녁 싱크에서만)
 
@@ -164,17 +167,20 @@ P1 파서·태깅 ──▶ P2 저장·잡·매칭 ──▶ P3 페이지 렌더
 
 ```ts
 type BLogEvent = {
-  id: string;                      // 세션 내 순번 기반 ("e0001")
+  id: string; // 세션 내 순번 기반 ("e0001")
   role: "user" | "assistant" | "tool";
-  ts?: string;                     // ISO. 대화록 등급은 없을 수 있음
+  ts?: string; // ISO. 대화록 등급은 없을 수 있음
   text: string;
   toolCalls?: { id: string; name: string; input: unknown }[];
   toolResults?: { callId: string; output: string; isError?: boolean }[];
-  filesChanged?: string[];         // 성공한 쓰기 도구의 보고에서만
-  gitCommit?: { sha?: string; message: string };   // git이 확인해 준 커밋만 (매칭 1단계)
+  filesChanged?: string[]; // 성공한 쓰기 도구의 보고에서만
+  gitCommit?: { sha?: string; message: string }; // git이 확인해 준 커밋만 (매칭 1단계)
 };
 type BLogSession = {
-  source: { tool: "claude-code" | "codex" | "transcript"; fidelity: "structured" | "transcript" };
+  source: {
+    tool: "claude-code" | "codex" | "transcript";
+    fidelity: "structured" | "transcript";
+  };
   cwd?: string;
   startedAt?: string;
   events: BLogEvent[];
@@ -192,13 +198,31 @@ type SessionAdapter = (lines: readonly string[]) => BLogSession;
 
 ```ts
 type PortfolioView = {
-  slug: string; title: string; tools: string[];
+  slug: string;
+  title: string;
+  tools: string[];
   fidelity: "structured" | "transcript";
-  summary: { problem: string; instruct: string; evidence: string; recovery: string };
-  timeline: { ts?: string; stage: Stage; summary: string; quote?: string; commit?: { sha: string; message: string; url: string } }[];
+  summary: {
+    problem: string;
+    instruct: string;
+    evidence: string;
+    recovery: string;
+  };
+  timeline: {
+    ts?: string;
+    stage: Stage;
+    summary: string;
+    quote?: string;
+    commit?: { sha: string; message: string; url: string };
+  }[];
   highlights: { stage: Stage; title: string; quote: string; why: string }[];
-  stats: { events: number; toolCalls: number; commits: number; durationMin?: number;
-           byRole: { user: number; assistant: number; tool: number } };  // "AI 기여/인간 개입" 재료
+  stats: {
+    events: number;
+    toolCalls: number;
+    commits: number;
+    durationMin?: number;
+    byRole: { user: number; assistant: number; tool: number };
+  }; // "AI 기여/인간 개입" 재료
 };
 ```
 
@@ -210,21 +234,21 @@ type PortfolioView = {
 
 ## 4. 날짜별 계획
 
-| 날짜 | P1 준호 | P2 백엔드 | P3 프론트 | P4 품질·데모 |
-| --- | --- | --- | --- | --- |
-| **9/8 월** | 킥오프 진행. `schema.ts` 확정·커밋. Claude Code 어댑터 시작. Supabase 멤버 초대, API 키 발급·전달 | 환경 세팅. 3.2 마이그레이션 초안 작성 | 환경 세팅. shadcn 세팅. `fixtures/portfolio.sample.json` 작성 | 환경 세팅. 정규식 마스킹 규칙·테스트. 태깅 프롬프트 v0 초안 |
-| **9/9 화** | Claude Code 어댑터 완성 → Codex 어댑터. CLI로 정규화 JSON 출력 | 마이그레이션 적용. `/api/upload` + Storage. jobs 테이블·상태 API | 랜딩 + 업로드 화면(fixtures) | P1 JSON으로 평가 청크 10~20개 선별. `compare-models.ts` 작성 |
-| **9/10 수** | 청킹 + AI SDK provider 추상화. 대화록 어댑터(LLM 구조화) | `/api/jobs/[id]/run` 청크 처리·체인. Octokit 커밋 조회 | 공개 페이지 `/p/[slug]` 타임라인·하이라이트(fixtures) | **모델 비교 실행 → 결정**. 프롬프트 v1 + zod 스키마 확정 |
-| **9/11 목** | `tag.ts` 4단계 태깅을 P4 프롬프트로 연결. CLI로 태깅까지 | 매칭 1·2단계(로그 커밋·타임스탬프). findings/matches 저장 | 검수 화면 `/review`(fixtures). 모바일 뷰 | 하이라이트 프롬프트. 마스킹 2차(LLM) 프롬프트. 데모 ② 로그 확보 |
-| **9/12 금** | **파이프라인 E2E(API)** 합류·디버깅 | `/publish` → `PortfolioView` 생성. **API E2E** | 실제 API 연결 시작(업로드·폴링) | 데모 ③ "나쁜 예" 로그 제작. 태깅 품질 수정 요청 정리 |
-| **9/13 토** | 통합 버그 수정. 등급 배지·통계 계산 | GitHub OAuth(`@supabase/ssr`), 내 목록. 매칭 3단계(임베딩, 대화록 등급만) | 검수·공개 페이지 실데이터 연결. OG 이미지 | 전체 시나리오 QA 1차. `/licenses` 내용 |
-| **9/14 일** | **웹 E2E 1회전** 주관. 범위 컷 결정 | 성능(300초 안), 에러 처리, 일일 상한 | 로딩·에러·빈 상태. 접근성 기본 | QA 결과 이슈화. 데모 ① 4명 로그 취합 |
-| **9/15 월** | 데모 ① 메타 포트폴리오 생성·검수 | 데모 3종 발행 지원. 버그 | 랜딩에 데모 카드. UI 다듬기 | 데모 3종 검수(개인정보). 제출서 초안 |
-| **9/16 화** | 최종 코드 리뷰 | 안정화 | 모바일 최종. **스크린샷 4장** 촬영 지원 | **데모 3종 공개**. 대표 이미지. 스크린샷 4장 |
-| **9/17 수** | 제출 내용 승인 | 버그 | 버그 | **가제출('제출' 상태)**. 스크린샷 보관 |
-| **9/18 목** | 팀원 등록 최종 확인 | 버그 | 버그 | 참가 접수 마감 대응. 홍보 문안 |
-| **9/19 토** | 버그픽스만. 외부 테스트 피드백 분류 | 버그픽스만 | 버그픽스만 | 외부인 2~3명 첫 사용 테스트 |
-| **9/20 일** | **오전 최종 확정** | 대기 | 최종 스크린샷 | 문구·스크린샷 갱신 후 제출 확정. UptimeRobot 등록 |
+| 날짜        | P1 준호                                                                                           | P2 백엔드                                                                 | P3 프론트                                                     | P4 품질·데모                                                    |
+| ----------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------------- |
+| **9/8 월**  | 킥오프 진행. `schema.ts` 확정·커밋. Claude Code 어댑터 시작. Supabase 멤버 초대, API 키 발급·전달 | 환경 세팅. 3.2 마이그레이션 초안 작성                                     | 환경 세팅. shadcn 세팅. `fixtures/portfolio.sample.json` 작성 | 환경 세팅. 정규식 마스킹 규칙·테스트. 태깅 프롬프트 v0 초안     |
+| **9/9 화**  | Claude Code 어댑터 완성 → Codex 어댑터. CLI로 정규화 JSON 출력                                    | 마이그레이션 적용. `/api/upload` + Storage. jobs 테이블·상태 API          | 랜딩 + 업로드 화면(fixtures)                                  | P1 JSON으로 평가 청크 10~20개 선별. `compare-models.ts` 작성    |
+| **9/10 수** | 청킹 + AI SDK provider 추상화. 대화록 어댑터(LLM 구조화)                                          | `/api/jobs/[id]/run` 청크 처리·체인. Octokit 커밋 조회                    | 공개 페이지 `/p/[slug]` 타임라인·하이라이트(fixtures)         | **모델 비교 실행 → 결정**. 프롬프트 v1 + zod 스키마 확정        |
+| **9/11 목** | `tag.ts` 4단계 태깅을 P4 프롬프트로 연결. CLI로 태깅까지                                          | 매칭 1·2단계(로그 커밋·타임스탬프). findings/matches 저장                 | 검수 화면 `/review`(fixtures). 모바일 뷰                      | 하이라이트 프롬프트. 마스킹 2차(LLM) 프롬프트. 데모 ② 로그 확보 |
+| **9/12 금** | **파이프라인 E2E(API)** 합류·디버깅                                                               | `/publish` → `PortfolioView` 생성. **API E2E**                            | 실제 API 연결 시작(업로드·폴링)                               | 데모 ③ "나쁜 예" 로그 제작. 태깅 품질 수정 요청 정리            |
+| **9/13 토** | 통합 버그 수정. 등급 배지·통계 계산                                                               | GitHub OAuth(`@supabase/ssr`), 내 목록. 매칭 3단계(임베딩, 대화록 등급만) | 검수·공개 페이지 실데이터 연결. OG 이미지                     | 전체 시나리오 QA 1차. `/licenses` 내용                          |
+| **9/14 일** | **웹 E2E 1회전** 주관. 범위 컷 결정                                                               | 성능(300초 안), 에러 처리, 일일 상한                                      | 로딩·에러·빈 상태. 접근성 기본                                | QA 결과 이슈화. 데모 ① 4명 로그 취합                            |
+| **9/15 월** | 데모 ① 메타 포트폴리오 생성·검수                                                                  | 데모 3종 발행 지원. 버그                                                  | 랜딩에 데모 카드. UI 다듬기                                   | 데모 3종 검수(개인정보). 제출서 초안                            |
+| **9/16 화** | 최종 코드 리뷰                                                                                    | 안정화                                                                    | 모바일 최종. **스크린샷 4장** 촬영 지원                       | **데모 3종 공개**. 대표 이미지. 스크린샷 4장                    |
+| **9/17 수** | 제출 내용 승인                                                                                    | 버그                                                                      | 버그                                                          | **가제출('제출' 상태)**. 스크린샷 보관                          |
+| **9/18 목** | 팀원 등록 최종 확인                                                                               | 버그                                                                      | 버그                                                          | 참가 접수 마감 대응. 홍보 문안                                  |
+| **9/19 토** | 버그픽스만. 외부 테스트 피드백 분류                                                               | 버그픽스만                                                                | 버그픽스만                                                    | 외부인 2~3명 첫 사용 테스트                                     |
+| **9/20 일** | **오전 최종 확정**                                                                                | 대기                                                                      | 최종 스크린샷                                                 | 문구·스크린샷 갱신 후 제출 확정. UptimeRobot 등록               |
 
 ## 5. 협업 규칙
 
@@ -262,6 +286,7 @@ main만 프로덕션에 배포되므로 **main은 항상 배포 가능한 상태
 ## 7. 오늘(9/8) 각자 체크리스트
 
 **전원**
+
 - [ ] 레포 클론 → `npm install`(훅 자동 설치) → `.env.example`을 `.env.local`로 복사
 - [ ] Claude Code 또는 Codex 로그인. 레포 폴더에서 세션 열기(CLAUDE.md/AGENTS.md 자동 적용 확인)
 - [ ] `~/.claude/settings.json`에 `cleanupPeriodDays` 설정
@@ -270,6 +295,7 @@ main만 프로덕션에 배포되므로 **main은 항상 배포 가능한 상태
 - [ ] README 팀원 표에 본인 핸들·역할 기입(PR)
 
 **준호**
+
 - [ ] Supabase org에 P2 초대, Supabase URL·anon·service_role을 안전한 경로로 P2·P3에 전달
 - [ ] Anthropic·Upstage API 키 발급 → P4에 전달
 - [ ] `schema.ts` 커밋, P3와 `fixtures/portfolio.sample.json` 합의

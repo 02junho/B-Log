@@ -1,10 +1,8 @@
 "use client";
 
-/** 검수 화면의 발행 확정 바. 액세스 코드는 업로드 화면과 같은 키를 재사용한다. */
-import { useRef, useState } from "react";
+/** 검수 화면의 발행 확정 바. 소유자 인증은 서버가 로그인 쿠키로 검증한다. */
+import { useEffect, useRef, useState } from "react";
 import type { ConfirmResponse } from "@/lib/api/types";
-
-const CODE_KEY = "blog-access-code";
 
 export function ConfirmPublish({
   sessionId,
@@ -15,35 +13,39 @@ export function ConfirmPublish({
   publicPath: string;
   alreadyPublished: boolean;
 }) {
-  const [code, setCode] = useState(() => {
-    try {
-      return typeof window === "undefined"
-        ? ""
-        : (sessionStorage.getItem(CODE_KEY) ?? "");
-    } catch {
-      return "";
-    }
-  });
   const [state, setState] = useState<
-    { kind: "idle" } | { kind: "busy" } | { kind: "done" } | { kind: "error"; message: string }
+    | { kind: "idle" }
+    | { kind: "busy" }
+    | { kind: "done" }
+    | { kind: "error"; message: string }
   >(alreadyPublished ? { kind: "done" } : { kind: "idle" });
   const [reviewed, setReviewed] = useState(false);
   const submitting = useRef(false);
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem("blog-access-code");
+    } catch {
+      /* Storage may be disabled. */
+    }
+  }, []);
 
   const confirm = async () => {
-    if (!reviewed || !code.trim() || submitting.current || state.kind === "done") return;
+    if (!reviewed || submitting.current || state.kind === "done") return;
     submitting.current = true;
     setState({ kind: "busy" });
     try {
       const res = await fetch(`/api/sessions/${sessionId}/confirm`, {
         method: "POST",
-        headers: { "x-blog-token": code },
+        credentials: "same-origin",
       });
-      if (res.status === 401) throw new Error("액세스 코드가 올바르지 않습니다.");
+      if (res.status === 401)
+        throw new Error(
+          "로그인이 만료됐습니다. 다시 로그인한 뒤 시도해주세요.",
+        );
       const body = (await res.json().catch(() => null)) as
-        | (ConfirmResponse & { error?: string })
-        | null;
-      if (!res.ok || !body) throw new Error(body?.error ?? `요청 실패 (${res.status})`);
+        (ConfirmResponse & { error?: string }) | null;
+      if (!res.ok || !body)
+        throw new Error(body?.error ?? `요청 실패 (${res.status})`);
       setState({ kind: "done" });
     } catch (err) {
       setState({
@@ -75,22 +77,13 @@ export function ConfirmPublish({
           disabled={state.kind === "busy"}
           onChange={(event) => setReviewed(event.target.checked)}
         />
-        공개될 인용·요약·커밋을 확인했고, 개인정보나 공개하면 안 되는 내용이 없는지 검토했습니다.
+        공개될 인용·요약·커밋을 확인했고, 개인정보나 공개하면 안 되는 내용이
+        없는지 검토했습니다.
       </label>
-      <input
-        type="password"
-        autoComplete="off"
-        placeholder="액세스 코드"
-        aria-label="액세스 코드"
-        suppressHydrationWarning
-        value={code}
-        disabled={state.kind === "busy"}
-        onChange={(e) => setCode(e.target.value)}
-      />
       <button
         type="button"
         className="button button-dark"
-        disabled={!code.trim() || !reviewed || state.kind === "busy"}
+        disabled={!reviewed || state.kind === "busy"}
         onClick={() => void confirm()}
       >
         {state.kind === "busy" ? "발행 중…" : "이대로 발행 확정"}
@@ -98,6 +91,16 @@ export function ConfirmPublish({
       {state.kind === "error" && (
         <p role="alert" className="upload-error">
           {state.message}
+          {state.message.startsWith("로그인이") && (
+            <>
+              {" "}
+              <a
+                href={`/login?next=${encodeURIComponent(`/sessions/${sessionId}/review`)}`}
+              >
+                로그인 확인
+              </a>
+            </>
+          )}
         </p>
       )}
     </div>
