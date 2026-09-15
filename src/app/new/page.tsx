@@ -15,7 +15,7 @@ export default async function NewSessionPage() {
   if (!(await getAuthUser())) redirect("/login?next=%2Fnew");
   return (
     <>
-      <SiteHeader />
+      <SiteHeader authenticated />
       <main id="main-content" className="upload-page">
         <span className="eyebrow">ANALYZE YOUR LOG</span>
         <h1>내 로그 분석하기</h1>
