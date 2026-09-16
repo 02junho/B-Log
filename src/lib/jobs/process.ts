@@ -17,7 +17,8 @@ import { buildPortfolioView, type MatchedCommit } from "../portfolio/build";
 import { fetchRepoCommits } from "../github/commits";
 import { githubIdentityOf, type GitHubIdentity } from "../github/identity";
 import { matchFindings, type MatchInput } from "../match/stages";
-import { maskDeep } from "../masking/rules";
+import { maskPortfolio } from "../masking/detect";
+import type { PortfolioView } from "../portfolio/view";
 import type { Db } from "../supabase/server";
 
 /** run 1회가 처리하는 최대 청크 수. 실측 ~5s/청크·동시성 5 기준 여유 있게. */
@@ -469,15 +470,25 @@ async function runPublish(db: Db, job: JobRow): Promise<ProcessResult> {
     "세션 분석";
   const slug = slugify(title, job.session_id);
 
-  // 마스킹은 발행 직전, view 전체에 (정규식 1차 — LLM 2차는 P4 후속)
-  const view = maskDeep(
-    buildPortfolioView(session, findings, {
-      slug,
-      title,
-      matchedCommits,
-      ...(repoUrl ? { repoUrl } : {}),
-    }),
-  );
+  // 마스킹은 발행 직전, view 전체에. 정규식 1차 → LLM 2차 순서이며,
+  // 2차가 실패해도 발행은 진행하고 열화 사실을 view에 남긴다 (검수 화면이 경고).
+  const built = buildPortfolioView(session, findings, {
+    slug,
+    title,
+    matchedCommits,
+    ...(repoUrl ? { repoUrl } : {}),
+  });
+  const { masked, report } = await maskPortfolio(built);
+  const view: PortfolioView = {
+    ...masked,
+    masking: {
+      level: report.level,
+      regexTotal: report.regexTotal,
+      llmApplied: report.llmApplied,
+      llmRejected: report.llmRejected,
+      ...(report.degradedReason ? { degradedReason: report.degradedReason } : {}),
+    },
+  };
 
   // 세션당 포트폴리오 1개. 새로 만들면 **초안(published_at=null)** — 공개는
   // 검수 확정(/api/sessions/[id]/confirm)이 한다. 이미 공개된 포트폴리오를

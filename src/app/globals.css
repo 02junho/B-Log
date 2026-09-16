@@ -1467,6 +1467,10 @@ input {
   flex-wrap: wrap;
   align-items: baseline;
 }
+.review-banner.is-warning {
+  background: rgba(176, 48, 32, 0.1);
+  border-color: rgba(176, 48, 32, 0.4);
+}
 .confirm-bar {
   max-width: 960px;
   margin: 12px auto 0;

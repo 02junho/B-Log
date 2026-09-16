@@ -16,6 +16,43 @@ export const metadata: Metadata = {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+type Masking = NonNullable<
+  import("zod").infer<typeof portfolioDisplaySchema>["masking"]
+>;
+
+/**
+ * 자동 마스킹이 어디까지 돌았는지 사람에게 알린다.
+ * 2차가 빠진 초안(필드 없음)과 열화(regex-only)는 똑같이 경고로 취급한다 —
+ * 무엇을 믿고 보는지 모르면 눈검사가 의미를 잃는다.
+ */
+function MaskingNotice({ masking }: { masking?: Masking }) {
+  const degraded = !masking || masking.level === "regex-only";
+  return (
+    <div
+      className={`review-banner${degraded ? " is-warning" : ""}`}
+      role={degraded ? "alert" : "status"}
+    >
+      <strong>{degraded ? "자동 마스킹 미완료" : "자동 마스킹 적용됨"}</strong>
+      <span>
+        {degraded ? (
+          <>
+            정규식 규칙만 적용됐습니다
+            {masking?.degradedReason ? ` (${masking.degradedReason})` : ""}.
+            사람 이름·내부 주소·사내 코드명은 걸러지지 않았을 수 있으니 직접
+            확인하세요.
+          </>
+        ) : (
+          <>
+            정규식 {masking.regexTotal}건, AI 검출 {masking.llmApplied}건을
+            가렸습니다. 자동 검출은 완벽하지 않으니 아래 인용을 눈으로 확인해
+            주세요.
+          </>
+        )}
+      </span>
+    </div>
+  );
+}
+
 /**
  * 발행 전 검수 화면. 초안(published_at=null)을 공개 페이지와 똑같이 렌더해
  * 보여주고, "발행 확정"이 confirm API를 호출한다.
@@ -55,6 +92,7 @@ export default async function ReviewPage({
           보이면 발행하지 말고 팀에 알려주세요.
         </span>
       </div>
+      <MaskingNotice masking={parsed.data.masking} />
       <ConfirmPublish
         sessionId={id}
         publicPath={`/p/${data.slug}`}

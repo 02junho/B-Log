@@ -53,6 +53,16 @@ export const portfolioDisplaySchema = z.object({
     durationMin: count.optional(),
     byRole: z.object({ user: count, assistant: count, tool: count }),
   }),
+  /** 마스킹 2차 이전에 만들어진 초안에는 없다 — optional이어야 옛 행이 계속 열린다. */
+  masking: z
+    .object({
+      level: z.enum(["regex+llm", "regex-only"]),
+      regexTotal: count,
+      llmApplied: count,
+      llmRejected: count,
+      degradedReason: z.string().optional(),
+    })
+    .optional(),
 });
 export function safeCommitUrl(value: string): string | undefined {
   try {
