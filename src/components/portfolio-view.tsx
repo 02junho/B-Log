@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import Link from "next/link";
 import {
   STAGES,
@@ -9,6 +9,8 @@ import {
 } from "@/lib/portfolio/view";
 import {
   STAGE_LABELS,
+  dayKeyOf,
+  displayDate,
   displayTime,
   displayDuration,
   safeCommitUrl,
@@ -271,15 +273,24 @@ export function PortfolioView({
               {rows.length}개의 기록
             </p>
             <ol className="timeline">
-              {rows.map((item) => {
+              {rows.map((item, i) => {
                 const url =
                   !demo && item.commit
                     ? safeCommitUrl(item.commit.url)
                     : undefined;
+                // 날짜가 바뀌는 지점에 구분선을 끼운다 (여러 날짜에 걸친 세션 대응).
+                const day = dayKeyOf(item.ts);
+                const prevDay = i > 0 ? dayKeyOf(rows[i - 1].ts) : undefined;
+                const showDay = Boolean(day) && day !== prevDay;
                 return (
+                  <Fragment key={item.index}>
+                    {showDay && (
+                      <li className="timeline-day" aria-label="날짜 구분">
+                        <span>{displayDate(item.ts)}</span>
+                      </li>
+                    )}
                   <li
                     className={`timeline-item stage-${item.stage}`}
-                    key={item.index}
                   >
                     <div className="time-rail">
                       <span className="timeline-dot" />
@@ -328,6 +339,7 @@ export function PortfolioView({
                       )}
                     </article>
                   </li>
+                  </Fragment>
                 );
               })}
             </ol>

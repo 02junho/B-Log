@@ -79,6 +79,27 @@ export function safeCommitUrl(value: string): string | undefined {
     /* Missing or invalid links render as text. */
   }
 }
+/** 타임라인 날짜 구분용 — 같은 날인지 판별하는 키 (서울 기준). */
+export function dayKeyOf(value?: string): string | undefined {
+  if (!value || Number.isNaN(Date.parse(value))) return undefined;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    dateStyle: "short",
+  }).format(new Date(value));
+}
+
+/** 날짜 구분선 라벨: "9월 6일 (토)". 여러 날에 걸친 세션에서 시각만 보이면
+ * 순서가 왜곡돼 보인다 — 날짜가 바뀔 때마다 이 라벨을 끼운다. */
+export function displayDate(value?: string): string {
+  if (!value || Number.isNaN(Date.parse(value))) return "";
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+  }).format(new Date(value));
+}
+
 export function displayTime(value?: string): string {
   if (!value || Number.isNaN(Date.parse(value))) return "시간 미기록";
   return new Intl.DateTimeFormat("ko-KR", {
@@ -90,7 +111,13 @@ export function displayTime(value?: string): string {
 }
 export function displayDuration(minutes?: number): string {
   if (minutes === undefined) return "미기록";
-  return minutes < 60
-    ? `${minutes}분`
-    : `${Math.floor(minutes / 60)}시간${minutes % 60 ? ` ${minutes % 60}분` : ""}`;
+  if (minutes < 60) return `${minutes}분`;
+  const hours = Math.floor(minutes / 60);
+  // 하루를 넘는 세션은 "147시간"보다 "6일 3시간"이 한눈에 읽힌다.
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    const restHours = hours % 24;
+    return `${days}일${restHours ? ` ${restHours}시간` : ""}`;
+  }
+  return `${hours}시간${minutes % 60 ? ` ${minutes % 60}분` : ""}`;
 }
