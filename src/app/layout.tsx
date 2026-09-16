@@ -26,6 +26,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        {/* Pretendard: 한글 본문 표준 서체. React 19가 precedence 링크를 head로 끌어올린다.
+            dynamic subset이라 쓰는 글자 범위만 내려받는다. */}
+        <link
+          rel="stylesheet"
+          precedence="default"
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+        />
         <a href="#main-content" className="skip-link">
           본문으로 건너뛰기
         </a>

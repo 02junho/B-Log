@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import sample from "../fixtures/portfolio.sample.json";
 import {
+  dayKeyOf,
+  displayDate,
   isPortfolioSlug,
   portfolioDisplaySchema,
   safeCommitUrl,
@@ -76,4 +78,17 @@ test("time and duration fallback labels are deterministic", () => {
   assert.equal(displayDuration(), "미기록");
   assert.equal(displayDuration(0), "0분");
   assert.equal(displayDuration(65), "1시간 5분");
+});
+
+test("displayDuration renders multi-day sessions in days", () => {
+  assert.equal(displayDuration(8851), "6일 3시간");
+  assert.equal(displayDuration(1440), "1일");
+  assert.equal(displayDuration(90), "1시간 30분");
+});
+
+test("displayDate and dayKeyOf group by Seoul calendar day", () => {
+  // 서울 자정 = 15:00Z. 그 이후와 다음날 14:59Z까지는 같은 날(서울 9/6).
+  assert.equal(dayKeyOf("2026-09-05T15:01:00Z"), dayKeyOf("2026-09-06T14:59:00Z"));
+  assert.notEqual(dayKeyOf("2026-09-05T14:59:00Z"), dayKeyOf("2026-09-05T15:01:00Z"));
+  assert.match(displayDate("2026-09-01T09:12:00Z"), /9월 1일/);
 });

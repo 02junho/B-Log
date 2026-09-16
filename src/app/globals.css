@@ -15,7 +15,9 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), "Malgun Gothic", Arial, sans-serif;
+  font-family: "Pretendard Variable", Pretendard, var(--font-geist-sans),
+    -apple-system, "Malgun Gothic", Arial, sans-serif;
+  word-break: keep-all;
 }
 
 html {
@@ -1506,4 +1508,41 @@ input {
   color: #7a5a16;
   border: 1px solid rgba(176, 128, 32, 0.3);
   white-space: nowrap;
+}
+
+/* ---------- 시각 다듬기 (9/16): 한글 타이포그래피 · 날짜 구분선 ---------- */
+/* 한글 헤드라인은 자간을 살짝 좁혀야 인쇄물처럼 읽힌다. */
+h1, h2, h3 {
+  letter-spacing: -0.02em;
+}
+/* 과했던 대문자 라벨 자간을 절제 — 장식이 본문을 이기지 않게. */
+.eyebrow {
+  letter-spacing: 0.18em;
+}
+/* 타임라인 날짜 구분선 */
+.timeline-day {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 28px 0 14px;
+}
+.timeline-day span {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  color: rgba(31, 42, 30, 0.55);
+  white-space: nowrap;
+}
+.timeline-day::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(31, 42, 30, 0.12);
+}
+/* 인용문: 배경 상자 대신 조용한 좌측 괘선 — 원문 증거라는 성격에 맞게 */
+.timeline-item blockquote,
+.highlight-card blockquote {
+  font-size: 0.95rem;
+  line-height: 1.75;
+  color: #3d463b;
 }
