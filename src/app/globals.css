@@ -1546,3 +1546,69 @@ h1, h2, h3 {
   line-height: 1.75;
   color: #3d463b;
 }
+
+/* ---------- 랜딩 데모 카드 3종 ---------- */
+.landing-demos {
+  background: #fff;
+  border-top: 1px solid rgba(31, 42, 30, 0.08);
+  padding: 72px 20px 88px;
+}
+.landing-demos-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+.landing-demos h2 {
+  font-size: 1.7rem;
+  margin: 10px 0 28px;
+}
+.demo-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+}
+.demo-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid rgba(31, 42, 30, 0.12);
+  border-radius: 14px;
+  padding: 22px;
+  text-decoration: none;
+  color: inherit;
+  background: #fdfdfb;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.demo-card:hover {
+  border-color: #2f4d2f;
+  transform: translateY(-2px);
+}
+.demo-card h3 {
+  font-size: 1.1rem;
+}
+.demo-card p {
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: rgba(31, 42, 30, 0.65);
+  flex: 1;
+}
+.demo-tag {
+  align-self: flex-start;
+  font-size: 0.72rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(31, 42, 30, 0.07);
+  color: rgba(31, 42, 30, 0.7);
+}
+.demo-tag.good {
+  background: rgba(47, 77, 47, 0.1);
+  color: #2f4d2f;
+}
+.demo-tag.bad {
+  background: rgba(160, 51, 35, 0.09);
+  color: #8a3020;
+}
+.demo-cta {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #2f4d2f;
+}
