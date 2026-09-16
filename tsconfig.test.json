@@ -12,6 +12,7 @@
   },
   "include": [
     "src/lib/parser/**/*.ts",
+    "src/lib/limits.ts",
     "src/lib/jobs/**/*.ts",
     "src/lib/supabase/**/*.ts",
     "src/lib/auth/**/*.ts",
