@@ -100,3 +100,28 @@ test("matched commits fill the timeline with method and distinct stats", () => {
   // 연결된 서로 다른 커밋 수
   assert.equal(view.stats.commits, 2);
 });
+
+test("weak non-user quotes are hidden from timeline and excluded from highlights", () => {
+  const s: BLogSession = {
+    source: { tool: "claude-code", fidelity: "structured" },
+    events: [
+      { id: "e0001", role: "user", ts: "2026-09-16T01:00:00Z", text: "응 다 해줘" },
+      { id: "e0002", role: "tool", ts: "2026-09-16T01:01:00Z", text: "pkill -f " },
+    ],
+  };
+  const view = buildPortfolioView(
+    s,
+    [
+      finding("instruct", 0.9, "e0001", "응 다 해줘"),
+      finding("evidence", 0.99, "e0002", "pkill -f "),
+    ],
+    { slug: "s", title: "T" },
+  );
+  // 사용자 발화는 짧아도 보존
+  assert.equal(view.timeline[0].quote, "응 다 해줘");
+  // 비사용자 파편은 인용만 생략, 요약은 유지
+  assert.equal(view.timeline[1].quote, undefined);
+  assert.equal(view.timeline[1].summary, "evidence 요약(0.99)");
+  // 하이라이트에서는 제외 (confidence가 더 높아도)
+  assert.deepEqual(view.highlights.map(h => h.quote), ["응 다 해줘"]);
+});
