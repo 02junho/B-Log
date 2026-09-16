@@ -5,7 +5,7 @@
  * tag 잡: next_idx부터 청크 배치를 태깅(동시성 5) → findings 저장 → 진행률 갱신.
  *   한 번의 run 호출은 TAG_BATCH개까지만 처리하고 남으면 continue=true를 돌려준다
  *   (Vercel 300초 안에서 안전하게 재개 — jobs.next_idx가 재개 지점).
- * match 잡: GitHub 커밋 조회 → 1단계(로그 sha)·2단계(±30분 창) 매칭 → matches 저장.
+ * match 잡: GitHub 커밋 조회 → 1단계(로그 sha)·2단계(직전 30분, 업로더 본인 커밋만) 매칭 → matches 저장.
  * publish 잡: 원본 재파싱(LLM 없음) → PortfolioView 조립 → 마스킹 → portfolios 저장.
  */
 import { parseSession } from "../parser";
@@ -15,8 +15,10 @@ import { chunkSession, type Chunk } from "../pipeline/chunk";
 import { tagSession, type TaggedFinding } from "../pipeline/tag";
 import { buildPortfolioView, type MatchedCommit } from "../portfolio/build";
 import { fetchRepoCommits } from "../github/commits";
+import { githubIdentityOf, type GitHubIdentity } from "../github/identity";
 import { matchFindings, type MatchInput } from "../match/stages";
-import { maskDeep } from "../masking/rules";
+import { maskPortfolio } from "../masking/detect";
+import type { PortfolioView } from "../portfolio/view";
 import type { Db } from "../supabase/server";
 
 /** run 1회가 처리하는 최대 청크 수. 실측 ~5s/청크·동시성 5 기준 여유 있게. */
@@ -287,6 +289,7 @@ async function runMatch(db: Db, job: JobRow): Promise<ProcessResult> {
     .eq("id", job.session_id)
     .single();
   const projectId = project!.project_id;
+  const author = await uploaderGithubIdentity(db, projectId);
   if (repoCommits.length > 0) {
     const { error: uErr } = await db.from("commits").upsert(
       repoCommits.map((c) => ({
@@ -335,13 +338,23 @@ async function runMatch(db: Db, job: JobRow): Promise<ProcessResult> {
     };
   });
 
+  // 작성자·머지 여부는 DB에 없고 방금 조회한 GitHub 응답에만 있다. 응답에 없는
+  // 옛 커밋 행은 귀속을 확인할 수 없으므로 2단계 대상에서 자연히 빠진다.
+  const repoBySha = new Map(repoCommits.map((c) => [c.sha, c]));
   const matches = matchFindings(
     inputs,
-    (commitRows ?? []).map((c) => ({
-      sha: c.sha,
-      message: c.message,
-      ...(c.authored_at ? { authoredAt: c.authored_at } : {}),
-    })),
+    (commitRows ?? []).map((c) => {
+      const fresh = repoBySha.get(c.sha);
+      return {
+        sha: c.sha,
+        message: c.message,
+        ...(c.authored_at ? { authoredAt: c.authored_at } : {}),
+        ...(fresh?.authorId ? { authorId: fresh.authorId } : {}),
+        ...(fresh?.authorLogin ? { authorLogin: fresh.authorLogin } : {}),
+        ...(fresh ? { isMerge: fresh.isMerge } : {}),
+      };
+    }),
+    author ? { author } : {},
   );
 
   // 재실행 대비: 이 세션 findings의 기존 매칭을 지우고 새로 넣는다.
@@ -363,6 +376,26 @@ async function runMatch(db: Db, job: JobRow): Promise<ProcessResult> {
 
   await db.from("jobs").update({ status: "done", progress: 100 }).eq("id", job.id);
   return { status: "done", progress: 100, continue: false };
+}
+
+/**
+ * 프로젝트 소유자의 GitHub 계정. 커밋 추정 연결(2단계)을 본인 커밋으로 제한하는 데 쓴다.
+ * 소유자가 없거나(OAuth 이전 업로드) 조회가 실패하면 undefined — 이 경우 2단계를
+ * 건너뛴다. 귀속을 확인 못 한 채 추정을 붙이는 것보다 추정 없이 발행하는 쪽이 낫다.
+ */
+async function uploaderGithubIdentity(db: Db, projectId: string): Promise<GitHubIdentity | undefined> {
+  const { data: projectRow } = await db
+    .from("projects")
+    .select("owner_id")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (!projectRow?.owner_id) return undefined;
+  try {
+    const { data, error } = await db.auth.admin.getUserById(projectRow.owner_id);
+    return error ? undefined : githubIdentityOf(data.user);
+  } catch {
+    return undefined;
+  }
 }
 
 function slugify(title: string, sessionId: string): string {
@@ -437,15 +470,25 @@ async function runPublish(db: Db, job: JobRow): Promise<ProcessResult> {
     "세션 분석";
   const slug = slugify(title, job.session_id);
 
-  // 마스킹은 발행 직전, view 전체에 (정규식 1차 — LLM 2차는 P4 후속)
-  const view = maskDeep(
-    buildPortfolioView(session, findings, {
-      slug,
-      title,
-      matchedCommits,
-      ...(repoUrl ? { repoUrl } : {}),
-    }),
-  );
+  // 마스킹은 발행 직전, view 전체에. 정규식 1차 → LLM 2차 순서이며,
+  // 2차가 실패해도 발행은 진행하고 열화 사실을 view에 남긴다 (검수 화면이 경고).
+  const built = buildPortfolioView(session, findings, {
+    slug,
+    title,
+    matchedCommits,
+    ...(repoUrl ? { repoUrl } : {}),
+  });
+  const { masked, report } = await maskPortfolio(built);
+  const view: PortfolioView = {
+    ...masked,
+    masking: {
+      level: report.level,
+      regexTotal: report.regexTotal,
+      llmApplied: report.llmApplied,
+      llmRejected: report.llmRejected,
+      ...(report.degradedReason ? { degradedReason: report.degradedReason } : {}),
+    },
+  };
 
   // 세션당 포트폴리오 1개. 새로 만들면 **초안(published_at=null)** — 공개는
   // 검수 확정(/api/sessions/[id]/confirm)이 한다. 이미 공개된 포트폴리오를

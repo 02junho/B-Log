@@ -50,4 +50,24 @@ export interface PortfolioView {
     /** "AI 기여/인간 개입" 요약의 재료 (ROADMAP Step 7 화면 요구사항). */
     byRole: { user: number; assistant: number; tool: number };
   };
+  /**
+   * 이 view에 적용된 마스킹의 상태. 발행 잡이 채운다.
+   *
+   * 없으면 = 마스킹 2차가 생기기 전에 만들어진 초안이다. 검수 화면은 없는 것과
+   * level: "regex-only"를 똑같이 경고로 취급해야 한다 — 사람이 무엇을 믿고
+   * 보는지 알아야 눈검사가 의미를 갖는다.
+   *
+   * 가려진 문자열 자체는 절대 담지 않는다. 개수만 담는다.
+   */
+  masking?: {
+    level: "regex+llm" | "regex-only";
+    /** 정규식이 치환한 총 횟수. */
+    regexTotal: number;
+    /** LLM 탐지로 추가로 가린 서로 다른 문자열 수. */
+    llmApplied: number;
+    /** 원문에 없어서 버린 후보 수 (모델이 지어낸 것). */
+    llmRejected: number;
+    /** level이 regex-only일 때 그 이유. */
+    degradedReason?: string;
+  };
 }
