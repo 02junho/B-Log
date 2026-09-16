@@ -1,5 +1,5 @@
 import Link from "next/link";
-export function SiteHeader() {
+export function SiteHeader({ authenticated = false }: { authenticated?: boolean }) {
   return (
     <header className="site-header">
       <div className="header-inner">
@@ -13,7 +13,14 @@ export function SiteHeader() {
           <Link href="/p/sample-login-fix">
             포트폴리오 둘러보기 <span aria-hidden="true">↗</span>
           </Link>
-          <Link href="/new">내 로그 분석하기</Link>
+          {authenticated ? (
+            <>
+              <Link href="/dashboard">내 작업공간</Link>
+              <Link href="/new">새 로그 분석</Link>
+            </>
+          ) : (
+            <Link href="/login">로그인</Link>
+          )}
         </nav>
       </div>
     </header>
