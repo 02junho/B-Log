@@ -7,6 +7,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { authenticate } from "@/lib/auth/api";
+import { checkDailyLimit } from "@/lib/limits";
 import { detectFormat } from "@/lib/parser";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { ApiError, UploadResponse } from "@/lib/api/types";
@@ -20,6 +21,14 @@ export async function POST(request: Request): Promise<Response> {
   if (!db) {
     return Response.json({ error: "db not configured" } satisfies ApiError, {
       status: 503,
+    });
+  }
+
+  // 일일 분석 한도 — 태깅(LLM 비용)의 유일한 입구가 업로드라 여기서 막는다.
+  const quota = await checkDailyLimit(db, auth.userId);
+  if (!quota.allowed) {
+    return Response.json({ error: quota.reason } satisfies ApiError, {
+      status: 429,
     });
   }
 
