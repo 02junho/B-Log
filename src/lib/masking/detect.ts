@@ -59,6 +59,8 @@ export interface MaskingReport {
 const MIN_CONFIDENCE = 0.3;
 /** 자리표시자 자체를 다시 가리려는 후보는 무의미하다. */
 const PLACEHOLDER = /^\[[^\]]+\]$/;
+/** PII 문자열이 이보다 길 일은 사실상 없다 — 문장 통째 치환 방지 안전망. */
+const MAX_CANDIDATE_CHARS = 60;
 
 function collectStrings(value: unknown, out: string[]): void {
   if (typeof value === "string") {
@@ -142,6 +144,13 @@ export async function maskPortfolio<T>(
     if (c.confidence < MIN_CONFIDENCE || PLACEHOLDER.test(text)) continue;
     // 원문에 그대로 없으면 모델이 지어낸 것이다. 버린다.
     if (!strings.some((s) => s.includes(text))) {
+      rejected++;
+      continue;
+    }
+    // 필드 전체를 삼키는 후보는 거부한다 — 인용·요약이 통째로 자리표시자가
+    // 되면 증거가 사라진다 (실사례: 오류 메시지 전체가 [연락처]로 치환됨).
+    // 진짜 PII가 필드 전체라면 그건 자동 치환이 아니라 검수에서 사람이 판단할 일.
+    if (text.length > MAX_CANDIDATE_CHARS || strings.some((s) => s.trim() === text)) {
       rejected++;
       continue;
     }
