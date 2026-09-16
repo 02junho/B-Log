@@ -33,7 +33,11 @@ test("Codex rollout passes through detection, chunks, verified tagging and portf
   assert.deepEqual(view.stats.byRole, { user: 1, assistant: 4, tool: 2 });
   assert.equal(view.timeline[0].quote, "버그를 고쳐줘.");
   assert.equal(view.timeline[1].commit?.url, "https://github.com/demo/project/commit/abc1234");
-  assert.equal(view.highlights.length, 2);
+  // 약한 인용 정책(PR #26): 비사용자 12자 미만 인용("fix: 예외 처리")은
+  // 타임라인에서 인용만 생략되고 하이라이트에서 제외된다. 커밋·요약은 유지.
+  assert.equal(view.timeline[1].quote, undefined);
+  assert.equal(view.highlights.length, 1);
+  assert.equal(view.highlights[0].quote, "버그를 고쳐줘.");
   assert.doesNotMatch(JSON.stringify(view), /없는 문장|SENTINEL/);
 });
 
