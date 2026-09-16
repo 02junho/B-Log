@@ -150,3 +150,23 @@ test("입력 객체를 변경하지 않는다", async () => {
   await maskPortfolio(view, runnerOf([]));
   assert.equal(view.quote, "메일 a@b.com");
 });
+
+test("필드 전체를 삼키는 LLM 후보는 거부된다 (증거 보존)", async () => {
+  const whole = "Error: No credentials found. Run vercel login";
+  const runner: MaskRunner = async () => ({
+    output: { candidates: [
+      { text: whole, category: "contact", confidence: 0.9 },          // 필드 전체 = 거부
+      { text: "가".repeat(61), category: "person", confidence: 0.9 },    // 60자 초과 = 거부
+      { text: "김철수", category: "person", confidence: 0.9 },           // 정상 후보 = 적용
+    ] },
+    inputTokens: 1, outputTokens: 1,
+  });
+  const { masked, report } = await maskPortfolio(
+    { quote: whole, note: "담당자 김철수 님이 " + "가".repeat(61) },
+    runner,
+  );
+  assert.equal(masked.quote, whole, "인용이 통째로 사라지면 안 된다");
+  assert.doesNotMatch(masked.note, /김철수/);
+  assert.equal(report.llmApplied, 1);
+  assert.equal(report.llmRejected, 2);
+});
