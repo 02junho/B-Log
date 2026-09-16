@@ -82,6 +82,15 @@ export function buildPortfolioView(
   // 타임라인: 이벤트 순서(= id 순번)대로. 인용 이벤트의 ts·커밋을 붙인다.
   // 커밋 우선순위: ①이벤트에서 git이 직접 확인한 커밋(method: "log")
   // ②매칭 잡이 찾아준 커밋(method는 매칭 방법 그대로 — 추정을 확정처럼 안 꾸민다).
+  // 약한 인용 판정: 사용자 발화가 아닌데 8자 미만이면 증거 가치가 없다
+  // ("pkill -f ", "HTTP 200" 같은 파편). 사용자 발화는 짧아도 지휘 스타일의
+  // 증거라 보존한다("응 다 해줘"). 약한 인용은 타임라인에서 인용만 생략하고
+  // (요약·커밋은 유지), 하이라이트 후보에서 제외한다.
+  const isWeakQuote = (f: TaggedFinding): boolean => {
+    if (f.quote.text.trim().length >= 12) return false;
+    return events.get(f.quote.eventId)?.role !== "user";
+  };
+
   const linkedShas = new Set<string>();
   const timeline = findings
     .map((f, i) => ({ f, matched: meta.matchedCommits?.[i] }))
@@ -108,15 +117,17 @@ export function buildPortfolioView(
         ...(ev?.ts ? { ts: ev.ts } : {}),
         stage: f.stage,
         summary: f.summary,
-        quote: f.quote.text,
+        ...(isWeakQuote(f) ? {} : { quote: f.quote.text.trim() }),
         ...(commit ? { commit } : {}),
       };
     });
 
-  const highlights = selectHighlights(findings).map((f) => ({
+  const highlights = selectHighlights(
+    findings.filter((f) => !isWeakQuote(f)),
+  ).map((f) => ({
     stage: f.stage,
     title: f.summary,
-    quote: f.quote.text,
+    quote: f.quote.text.trim(),
     why: `세션 원문에서 그대로 확인된 인용 (${f.quote.eventId}, 신뢰도 ${Math.round(f.confidence * 100)}%)`,
   }));
 
