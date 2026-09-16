@@ -2,7 +2,7 @@ export function loginDestination(value: unknown): string {
   if (typeof value !== "string") return "/dashboard";
   return value === "/dashboard" ||
     value === "/new" ||
-    /^\/sessions\/[0-9a-f-]{36}\/review$/i.test(value)
+    /^\/sessions\/[0-9a-f-]{36}\/(review|progress)$/i.test(value)
     ? value
     : "/dashboard";
 }
