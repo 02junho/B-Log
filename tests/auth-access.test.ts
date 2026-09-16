@@ -73,7 +73,9 @@ test("same-origin comparison follows the public reverse-proxy host", async () =>
 });
 test("login return addresses cannot leave the allowed product pages", () => {
   const review = "/sessions/12345678-1234-1234-1234-123456789abc/review";
+  const progress = "/sessions/12345678-1234-1234-1234-123456789abc/progress";
   assert.equal(loginDestination(review), review);
+  assert.equal(loginDestination(progress), progress);
   assert.equal(loginDestination("/dashboard"), "/dashboard");
   assert.equal(loginDestination("/new"), "/new");
   for (const value of [

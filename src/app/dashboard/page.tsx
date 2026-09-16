@@ -37,6 +37,9 @@ function EntryAction({ entry }: { entry: DashboardEntry }) {
   if (entry.state === "review") {
     return <Link className="dashboard-card-link" href={`/sessions/${entry.id}/review`}>검수 계속하기 <span aria-hidden="true">→</span></Link>;
   }
+  if (["uploaded", "processing", "ready"].includes(entry.state)) {
+    return <Link className="dashboard-card-link" href={`/sessions/${entry.id}/progress`}>분석 이어가기 <span aria-hidden="true">→</span></Link>;
+  }
   return null;
 }
 

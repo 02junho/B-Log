@@ -1453,6 +1453,9 @@ input {
 .upload-progress small {
   color: rgba(31, 42, 30, 0.55);
 }
+.resume-page .upload-card h2 { margin: 0 0 10px; }
+.resume-page .upload-card > p { color: #667267; line-height: 1.7; margin: 0 0 24px; }
+.resume-actions { display: flex; flex-direction: column; gap: 16px; }
 
 /* ---------- 검수 화면 ---------- */
 .review-banner {
