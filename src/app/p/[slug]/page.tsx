@@ -11,7 +11,15 @@ import { SiteHeader } from "@/components/site-header";
 import sample from "../../../../fixtures/portfolio.sample.json";
 
 export const dynamic = "force-dynamic";
-const loadPortfolio = cache(async (slug: string) => {
+const loadPortfolio = cache(async (rawSlug: string) => {
+  // Next는 한글 슬러그를 퍼센트 인코딩된 채로 넘긴다 — 디코딩 없이는
+  // 한글 제목 포트폴리오가 전부 404였다 (9/16 발행 직후 실사례).
+  let slug: string;
+  try {
+    slug = decodeURIComponent(rawSlug);
+  } catch {
+    notFound();
+  }
   if (slug === sample.slug)
     return { view: portfolioDisplaySchema.parse(sample), demo: true };
   if (!isPortfolioSlug(slug)) notFound();

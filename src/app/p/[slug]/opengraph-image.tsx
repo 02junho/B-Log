@@ -19,7 +19,13 @@ type OgData = {
   commits: number;
 };
 
-async function loadOgData(slug: string): Promise<OgData | null> {
+async function loadOgData(rawSlug: string): Promise<OgData | null> {
+  let slug: string;
+  try {
+    slug = decodeURIComponent(rawSlug);
+  } catch {
+    return null;
+  }
   if (slug === sample.slug) {
     const view = portfolioDisplaySchema.parse(sample);
     return {
