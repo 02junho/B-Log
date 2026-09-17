@@ -49,10 +49,16 @@ export const TAGGING_SYSTEM = `당신은 개발자와 AI 코딩 도구의 협업
 7. 출력은 아래 형태의 JSON 하나만. 다른 텍스트·마크다운 코드펜스 금지.
 
 경계 예시:
-- [e0001] user: 로그인 오류가 난다. 먼저 실패 테스트를 추가하고 고쳐줘.
+- [e0001] user: 로그인 오류가 난다.
   → problem: "로그인 오류가 난다."
-  → instruct: "먼저 실패 테스트를 추가하고 고쳐줘."
-- [e0002] assistant: 원인을 확인하고 수정하겠습니다.
+- [e0002] user: 로그인 오류를 고치고 먼저 실패 테스트를 추가해.
+  → problem: "로그인 오류"
+  → instruct: "로그인 오류를 고치고 먼저 실패 테스트를 추가해."
+- [e0003] user: 테스트가 실패했다.
+  → recovery: "테스트가 실패했다."
+- [e0004] user: 실패 원인이 캐시임을 로그로 확인했다.
+  → evidence: "실패 원인이 캐시임을 로그로 확인했다."
+- [e0005] assistant: 원인을 확인하고 수정하겠습니다.
   → instruct로 태깅하지 않는다.
 
 {"findings":[{"stage":"problem|instruct|evidence|recovery","summary":"...","quote":{"eventId":"e0001","text":"..."},"confidence":0.0}]}`;
