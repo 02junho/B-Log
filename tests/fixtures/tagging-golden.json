@@ -1,0 +1,74 @@
+[
+  {
+    "id": "problem-login",
+    "eventId": "e0101",
+    "text": "로그인할 때 500 오류가 난다.",
+    "expectedStages": ["problem"]
+  },
+  {
+    "id": "problem-payment",
+    "eventId": "e0102",
+    "text": "결제 요청이 중복 처리된다.",
+    "expectedStages": ["problem"]
+  },
+  {
+    "id": "problem-instruct-login",
+    "eventId": "e0103",
+    "text": "로그인 오류를 고치고 먼저 실패 테스트를 추가해.",
+    "expectedStages": ["problem", "instruct"]
+  },
+  {
+    "id": "problem-instruct-payment",
+    "eventId": "e0104",
+    "text": "결제 요청이 중복 처리되는 문제를 재현하고 고쳐줘. 먼저 원인을 확인하고 회귀 테스트를 추가해.",
+    "expectedStages": ["problem", "instruct"]
+  },
+  {
+    "id": "instruct-order",
+    "eventId": "e0105",
+    "text": "코드를 바꾸기 전에 실패 테스트부터 작성하고 수정 후 전체 테스트를 실행해.",
+    "expectedStages": ["instruct"]
+  },
+  {
+    "id": "instruct-constraint",
+    "eventId": "e0106",
+    "text": "공개 API 형태는 유지하고 내부 구현만 수정해.",
+    "expectedStages": ["instruct"]
+  },
+  {
+    "id": "recovery-failure",
+    "eventId": "e0107",
+    "text": "방금 실행한 테스트가 실패했다.",
+    "expectedStages": ["recovery"]
+  },
+  {
+    "id": "recovery-fixed",
+    "eventId": "e0108",
+    "text": "빌드 오류를 수정한 뒤 다시 실행하니 통과했다.",
+    "expectedStages": ["recovery"]
+  },
+  {
+    "id": "evidence-cache",
+    "eventId": "e0109",
+    "text": "실패 원인이 캐시임을 로그로 확인했다.",
+    "expectedStages": ["evidence"]
+  },
+  {
+    "id": "evidence-benchmark",
+    "eventId": "e0110",
+    "text": "벤치마크 결과 응답 시간이 420ms에서 180ms로 줄었음을 확인했다.",
+    "expectedStages": ["evidence"]
+  },
+  {
+    "id": "evidence-recovery",
+    "eventId": "e0111",
+    "text": "테스트 실패 로그에서 누락된 환경 변수를 확인했고 값을 고친 뒤 테스트가 통과했다.",
+    "expectedStages": ["evidence", "recovery"]
+  },
+  {
+    "id": "instruct-evidence-order",
+    "eventId": "e0112",
+    "text": "먼저 재현 테스트를 실행해. 결과를 확인한 뒤에만 코드를 수정해.",
+    "expectedStages": ["instruct"]
+  }
+]
