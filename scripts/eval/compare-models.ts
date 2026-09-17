@@ -2,7 +2,7 @@
  * Tagging eval harness (originally Step 4 model comparison; the model is now
  * fixed to Solar Pro 4, so this is the prompt/설정 A/B tool).
  *
- *   npm run eval:models -- <log file> [--chunks 10] [--seed 42]
+ *   npm run eval:models -- <log file> [--chunks 10] [--seed 42] [--variant both]
  *
  * Runs the production path — JSON mode (`generateObject`) + one retry — on
  * sampled chunks and reports the metrics that decide prompt versions. Writes
@@ -27,11 +27,11 @@ import {
 } from "../../src/lib/pipeline/llm";
 import {
   STAGES,
-  TAGGING_SYSTEM,
   taggingOutputSchema,
   taggingUserPrompt,
   type TaggingOutput,
 } from "../../src/lib/prompts/tagging";
+import { TAGGING_PROMPT_VARIANTS } from "./tagging-prompts";
 
 interface ChunkRun {
   chunkId: string;
@@ -59,7 +59,11 @@ function sample<T>(items: T[], n: number, seed: number): T[] {
 }
 
 /** Production path: JSON mode via generateObject, then one retry on failure. */
-async function runChunk(p: ProviderConfig, chunk: Chunk): Promise<ChunkRun> {
+async function runChunk(
+  p: ProviderConfig,
+  chunk: Chunk,
+  system: string,
+): Promise<ChunkRun> {
   const t0 = Date.now();
   const base: Omit<ChunkRun, "ok" | "firstTry"> = {
     chunkId: chunk.id,
@@ -75,7 +79,7 @@ async function runChunk(p: ProviderConfig, chunk: Chunk): Promise<ChunkRun> {
       const res = await generateObject({
         model: getModel(p),
         schema: taggingOutputSchema,
-        system: TAGGING_SYSTEM,
+        system,
         prompt: taggingUserPrompt(chunk.text),
         maxOutputTokens: 2000,
       });
@@ -98,7 +102,12 @@ async function runChunk(p: ProviderConfig, chunk: Chunk): Promise<ChunkRun> {
   return { ...base, ok: false, firstTry: false, parseError };
 }
 
-function summarize(p: ProviderConfig, runs: ChunkRun[], totalChunks: number) {
+function summarize(
+  p: ProviderConfig,
+  variant: (typeof TAGGING_PROMPT_VARIANTS)[number],
+  runs: ChunkRun[],
+  totalChunks: number,
+) {
   const ok = runs.filter((r) => r.ok);
   const findings = ok.flatMap((r) => r.findings);
   const perStage = Object.fromEntries(
@@ -110,6 +119,8 @@ function summarize(p: ProviderConfig, runs: ChunkRun[], totalChunks: number) {
   return {
     provider: p.label,
     model: p.modelId,
+    prompt: variant.label,
+    promptKey: variant.key,
     chunks: runs.length,
     firstTryRate: runs.length
       ? runs.filter((r) => r.firstTry).length / runs.length
@@ -141,20 +152,20 @@ function reportMarkdown(
   const rows = summaries
     .map(
       (s) =>
-        `| ${s.provider} | ${(s.firstTryRate * 100).toFixed(0)}% → ${(s.jsonValidRate * 100).toFixed(0)}% | ${s.findingsTotal} | ` +
+        `| ${s.provider} | ${s.prompt} | ${(s.firstTryRate * 100).toFixed(0)}% → ${(s.jsonValidRate * 100).toFixed(0)}% | ${s.findingsTotal} | ` +
         `${STAGES.map((st) => s.perStage[st]).join("/")} | ` +
         `${(s.quoteVerifiedRate * 100).toFixed(0)}% | ${s.avgLatencyMs}ms | ` +
         `$${s.sampleCostUsd.toFixed(4)} | $${s.estSessionCostUsd.toFixed(4)} |`,
     )
     .join("\n");
-  return `# Step 4 모델 비교 리포트
+  return `# 태깅 프롬프트 A/B 리포트
 
 - 로그: \`${logFile}\`
-- 청크: 전체 ${totalChunks}개 중 ${sampled}개 샘플 (동일 샘플·동일 프롬프트)
+- 청크: 전체 ${totalChunks}개 중 ${sampled}개 샘플 (동일 모델·동일 샘플)
 - 생성: ${new Date().toISOString()}
 
-| 모델 | 유효율(1회→재시도후) | 태그 수 | 단계별(p/i/e/r) | 인용 검증율 | 평균 지연 | 샘플 비용 | 세션 추정 비용 |
-| --- | --- | --- | --- | --- | --- | --- | --- |
+| 모델 | 프롬프트 | 유효율(1회→재시도후) | 태그 수 | 단계별(p/i/e/r) | 인용 검증율 | 평균 지연 | 샘플 비용 | 세션 추정 비용 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
 ${rows}
 
 - 인용 검증율: quote.text가 실제로 청크 원문에 그대로 존재하는 비율 (출처 기반 정확성).
@@ -171,11 +182,21 @@ async function main(): Promise<void> {
   };
   const logFile = positional[0];
   if (!logFile) {
-    console.error("usage: npm run eval:models -- <log file> [--chunks 10] [--seed 42]");
+    console.error(
+      "usage: npm run eval:models -- <log file> [--chunks 10] [--seed 42] [--variant baseline|candidate|both]",
+    );
     process.exit(1);
   }
   const nChunks = Number(flag("chunks") ?? 10);
   const seed = Number(flag("seed") ?? 42);
+  const selectedVariant = flag("variant") ?? "both";
+  const variants = TAGGING_PROMPT_VARIANTS.filter(
+    (variant) => selectedVariant === "both" || variant.key === selectedVariant,
+  );
+  if (!variants.length) {
+    console.error("--variant는 baseline, candidate, both 중 하나여야 합니다.");
+    process.exit(1);
+  }
 
   const lines = readFileSync(logFile, "utf8").split("\n");
   const session = parseSession(lines);
@@ -192,17 +213,19 @@ async function main(): Promise<void> {
       console.log(`- ${p.label}: ${p.envVar} 미설정 → 건너뜀`);
       continue;
     }
-    console.log(`- ${p.label} (${p.modelId}) 실행 중…`);
-    const runs: ChunkRun[] = [];
-    for (const chunk of sampled) {
-      const run = await runChunk(p, chunk);
-      runs.push(run);
-      console.log(
-        `  ${chunk.id}: ${run.ok ? `${run.findings.length}개 태그, 인용검증 ${run.verifiedQuotes}` : `실패(${run.parseError})`} ${run.latencyMs}ms`,
-      );
+    for (const variant of variants) {
+      console.log(`- ${p.label} (${p.modelId}) / ${variant.label} 실행 중…`);
+      const runs: ChunkRun[] = [];
+      for (const chunk of sampled) {
+        const run = await runChunk(p, chunk, variant.system);
+        runs.push(run);
+        console.log(
+          `  ${chunk.id}: ${run.ok ? `${run.findings.length}개 태그, 인용검증 ${run.verifiedQuotes}` : `실패(${run.parseError})`} ${run.latencyMs}ms`,
+        );
+      }
+      raw[`${p.key}-${variant.key}`] = runs;
+      summaries.push(summarize(p, variant, runs, chunks.length));
     }
-    raw[p.key] = runs;
-    summaries.push(summarize(p, runs, chunks.length));
   }
 
   if (!summaries.length) {
