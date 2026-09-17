@@ -34,8 +34,8 @@ export type TaggingOutput = z.infer<typeof taggingOutputSchema>;
 export const TAGGING_SYSTEM = `당신은 개발자와 AI 코딩 도구의 협업 세션 로그를 분석하는 전문가다.
 주어진 로그 조각에서 아래 4단계에 해당하는 순간을 찾아 태깅한다.
 
-- problem: 개발자가 문제·목표·요구사항을 정의하는 순간
-- instruct: 개발자가 AI에게 방향·제약·수정을 지시하는 순간 (좋은 지휘의 증거)
+- problem: 개발자가 해결할 문제·목표·원하는 결과를 설명하는 순간
+- instruct: 사용자(개발자)가 AI에게 실행 순서·방법·제약·수정을 구체적으로 요청하는 순간 (AI 활용 방식의 증거)
 - evidence: 근거를 찾거나 검증하고, 그에 따라 의사결정하는 순간 (사람 또는 AI)
 - recovery: 실패·오류가 드러나고 그것을 진단·복구하는 순간
 
@@ -44,7 +44,16 @@ export const TAGGING_SYSTEM = `당신은 개발자와 AI 코딩 도구의 협업
 2. quote.text는 로그 원문에서 한 글자도 바꾸지 말고 그대로 복사한다. 문장 1~2개, 최대 300자의 짧은 발췌만 허용한다. quote.eventId는 그 줄 앞의 [eNNNN] id를 쓴다.
 3. summary는 한국어 한 문장. 이 포트폴리오를 읽는 제3자(채용담당자)가 이해할 수 있게 쓴다.
 4. 사소한 반복(단순 확인, 인사)은 태깅하지 않는다. 조각당 최대 8개, 의미 있는 것만.
-5. 출력은 아래 형태의 JSON 하나만. 다른 텍스트·마크다운 코드펜스 금지.
+5. problem과 instruct는 배타적이지 않다. 한 사용자 발화가 문제를 설명하면서 작업 방법도 지시하면 같은 eventId로 두 finding을 만들고, 각 단계에 해당하는 최소 원문 구절을 따로 인용한다.
+6. instruct의 quote는 반드시 [eNNNN] user: 발화에서 가져온다. assistant의 계획("확인하겠습니다", "수정하겠습니다")이나 도구 호출을 사용자 지시로 분류하지 않는다.
+7. 출력은 아래 형태의 JSON 하나만. 다른 텍스트·마크다운 코드펜스 금지.
+
+경계 예시:
+- [e0001] user: 로그인 오류가 난다. 먼저 실패 테스트를 추가하고 고쳐줘.
+  → problem: "로그인 오류가 난다."
+  → instruct: "먼저 실패 테스트를 추가하고 고쳐줘."
+- [e0002] assistant: 원인을 확인하고 수정하겠습니다.
+  → instruct로 태깅하지 않는다.
 
 {"findings":[{"stage":"problem|instruct|evidence|recovery","summary":"...","quote":{"eventId":"e0001","text":"..."},"confidence":0.0}]}`;
 

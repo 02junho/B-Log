@@ -73,7 +73,7 @@ export function PortfolioView({
           <h1 id="portfolio-title">{view.title}</h1>
           <p className="hero-description">
             무엇을 만들었는지 너머,
-            <br className="mobile-break" /> 어떻게 생각하고 AI를 지휘했는지.
+            <br className="mobile-break" /> 어떻게 생각하고 AI를 활용했는지.
           </p>
           <div className="hero-tags">
             <span className={`fidelity ${view.fidelity}`}>

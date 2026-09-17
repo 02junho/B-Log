@@ -35,7 +35,7 @@ export interface ChunkTagResult {
   ok: boolean;
   error?: string;
   findings: TaggedFinding[];
-  /** Findings dropped because the quote wasn't verbatim in the chunk. */
+  /** Findings dropped because the quote or its source role failed verification. */
   droppedQuotes: number;
   inputTokens: number;
   outputTokens: number;
@@ -110,7 +110,13 @@ export async function tagChunk(
       base.outputTokens += outputTokens;
       const verified: TaggedFinding[] = [];
       for (const f of output.findings) {
-        const ok = quoteBelongsToEvent(chunk, f.quote.eventId, f.quote.text);
+        const requiredRole = f.stage === "instruct" ? "user" : undefined;
+        const ok = quoteBelongsToEvent(
+          chunk,
+          f.quote.eventId,
+          f.quote.text,
+          requiredRole,
+        );
         if (ok) verified.push({ chunkId: chunk.id, ...f });
         else base.droppedQuotes++;
       }
@@ -125,14 +131,25 @@ export async function tagChunk(
 /** Validate inside one rendered event section, excluding its synthetic header.
  * Searching the whole chunk would attribute another speaker's words to this ID.
  */
-function quoteBelongsToEvent(chunk: Chunk, eventId: string, quote: string): boolean {
+function quoteBelongsToEvent(
+  chunk: Chunk,
+  eventId: string,
+  quote: string,
+  requiredRole?: "user",
+): boolean {
   if (!quote.trim() || !chunk.eventIds.includes(eventId)) return false;
-  const header = /^\[([^\]\r\n]+)\] [^:\r\n]+: ?/gm;
+  const header = /^\[([^\]\r\n]+)\] ([^:\r\n]+): ?/gm;
   let current = header.exec(chunk.text);
   while (current) {
     const start = current.index + current[0].length;
     const next = header.exec(chunk.text);
-    if (current[1] === eventId && chunk.text.slice(start, next?.index).includes(quote)) return true;
+    if (
+      current[1] === eventId &&
+      (!requiredRole || current[2] === requiredRole) &&
+      chunk.text.slice(start, next?.index).includes(quote)
+    ) {
+      return true;
+    }
     current = next;
   }
   return false;
