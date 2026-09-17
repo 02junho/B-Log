@@ -36,8 +36,8 @@ export const TAGGING_SYSTEM = `당신은 개발자와 AI 코딩 도구의 협업
 
 - problem: 개발자가 해결할 문제·목표·원하는 결과를 설명하는 순간
 - instruct: 사용자(개발자)가 AI에게 실행 순서·방법·제약·수정을 구체적으로 요청하는 순간 (AI 활용 방식의 증거)
-- evidence: 근거를 찾거나 검증하고, 그에 따라 의사결정하는 순간 (사람 또는 AI)
-- recovery: 실패·오류가 드러나고 그것을 진단·복구하는 순간
+- evidence: 결론의 근거가 되는 관찰·검증 결과를 확인하는 순간 (수정 후 성공 검증 포함, 사람 또는 AI)
+- recovery: 실패·오류가 드러나거나 그 원인을 진단하고 구체적인 복구 행동을 정하는 순간
 
 규칙:
 1. 로그에 실제로 있는 순간만 태깅한다. 없는 단계는 비워도 된다.
@@ -46,7 +46,8 @@ export const TAGGING_SYSTEM = `당신은 개발자와 AI 코딩 도구의 협업
 4. 사소한 반복(단순 확인, 인사)은 태깅하지 않는다. 조각당 최대 8개, 의미 있는 것만.
 5. problem과 instruct는 배타적이지 않다. 한 사용자 발화가 문제를 설명하면서 작업 방법도 지시하면 같은 eventId로 두 finding을 만들고, 각 단계에 해당하는 최소 원문 구절을 따로 인용한다.
 6. instruct의 quote는 반드시 [eNNNN] user: 발화에서 가져온다. assistant의 계획("확인하겠습니다", "수정하겠습니다")이나 도구 호출을 사용자 지시로 분류하지 않는다.
-7. 출력은 아래 형태의 JSON 하나만. 다른 텍스트·마크다운 코드펜스 금지.
+7. 실패 사실·진단·복구 행동은 recovery다. 수정 후 테스트 통과처럼 성공 여부만 확인하는 검증 결과는 evidence이며, recovery로 중복 태깅하지 않는다.
+8. 출력은 아래 형태의 JSON 하나만. 다른 텍스트·마크다운 코드펜스 금지.
 
 경계 예시:
 - [e0001] user: 로그인 오류가 난다.
@@ -58,7 +59,10 @@ export const TAGGING_SYSTEM = `당신은 개발자와 AI 코딩 도구의 협업
   → recovery: "테스트가 실패했다."
 - [e0004] user: 실패 원인이 캐시임을 로그로 확인했다.
   → evidence: "실패 원인이 캐시임을 로그로 확인했다."
-- [e0005] assistant: 원인을 확인하고 수정하겠습니다.
+- [e0005] assistant: 수정 후 회귀 테스트 3개가 모두 통과했습니다.
+  → evidence: "수정 후 회귀 테스트 3개가 모두 통과했습니다."
+  → recovery로 태깅하지 않는다.
+- [e0006] assistant: 원인을 확인하고 수정하겠습니다.
   → instruct로 태깅하지 않는다.
 
 {"findings":[{"stage":"problem|instruct|evidence|recovery","summary":"...","quote":{"eventId":"e0001","text":"..."},"confidence":0.0}]}`;

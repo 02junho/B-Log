@@ -25,6 +25,10 @@ test("tagging prompt separates problem from user instruction and allows both", (
   );
   assert.match(TAGGING_SYSTEM, /테스트가 실패했다\.\s+→ recovery/);
   assert.match(TAGGING_SYSTEM, /실패 원인이 캐시임을 로그로 확인했다\.\s+→ evidence/);
+  assert.match(
+    TAGGING_SYSTEM,
+    /수정 후 회귀 테스트 3개가 모두 통과했습니다\.\s+→ evidence:[\s\S]+→ recovery로 태깅하지 않는다/,
+  );
 });
 
 test("mapWithConcurrency preserves order and respects the limit", async () => {

@@ -44,7 +44,7 @@
   {
     "id": "recovery-fixed",
     "eventId": "e0108",
-    "text": "빌드 오류를 수정한 뒤 다시 실행하니 통과했다.",
+    "text": "빌드가 모듈 누락 오류로 중단되어 누락된 의존성을 추가했다.",
     "expectedStages": ["recovery"]
   },
   {
@@ -70,5 +70,11 @@
     "eventId": "e0112",
     "text": "먼저 재현 테스트를 실행해. 결과를 확인한 뒤에만 코드를 수정해.",
     "expectedStages": ["instruct"]
+  },
+  {
+    "id": "evidence-regression-pass",
+    "eventId": "e0113",
+    "text": "수정 후 회귀 테스트 3개가 모두 통과했음을 확인했다.",
+    "expectedStages": ["evidence"]
   }
 ]
