@@ -1612,3 +1612,48 @@ h1, h2, h3 {
   font-weight: 600;
   color: #2f4d2f;
 }
+
+/* ---------- 라이선스 페이지 ---------- */
+.licenses-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 56px 20px 96px;
+}
+.licenses-page h1 {
+  font-size: 2rem;
+  margin: 10px 0 12px;
+}
+.licenses-page h2 {
+  font-size: 1.15rem;
+  margin: 34px 0 12px;
+}
+.license-list {
+  list-style: none;
+  padding: 0;
+  border-top: 1px solid rgba(31, 42, 30, 0.1);
+}
+.license-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 11px 2px;
+  border-bottom: 1px solid rgba(31, 42, 30, 0.08);
+  font-size: 0.93rem;
+}
+.license-list a {
+  color: #2f4d2f;
+  font-weight: 600;
+  text-decoration: none;
+}
+.license-list a:hover {
+  text-decoration: underline;
+}
+.license-list span {
+  color: rgba(31, 42, 30, 0.55);
+  flex: 1;
+}
+.license-list code {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.78rem;
+  color: rgba(31, 42, 30, 0.7);
+}

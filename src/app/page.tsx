@@ -104,7 +104,8 @@ export default function Home() {
         </div>
       </section>
       <footer className="landing-footer">
-        B-Log · Build-Log <span>만든 것 너머, 만들어 온 과정까지.</span>
+        B-Log · Build-Log <span>만든 것 너머, 만들어 온 과정까지.</span>{" "}
+        <Link href="/licenses">오픈소스 라이선스</Link>
       </footer>
     </>
   );
