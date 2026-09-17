@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import fixture from "./fixtures/tagging-golden.json";
 import {
+  scoreInstructUserRecall,
   scoreTaggingCases,
   type TaggingGoldenCase,
 } from "../scripts/eval/tagging-recall";
@@ -61,4 +62,58 @@ test("stage scoring measures case-level recall instead of raw finding counts", (
   });
   assert.equal(score.exactMatches, 2);
   assert.equal(score.exactMatchRate, 0.5);
+});
+
+test("instruct recall checks every user utterance and reports misses and false positives", () => {
+  const sample: TaggingGoldenCase[] = [
+    {
+      id: "short",
+      eventId: "e0201",
+      text: "리뷰 진행해.",
+      expectedStages: ["instruct"],
+      instructKind: "short-command",
+    },
+    {
+      id: "constraint",
+      eventId: "e0202",
+      text: "머지는 시도하지 마.",
+      expectedStages: ["instruct"],
+      instructKind: "constraint",
+    },
+    {
+      id: "continuation",
+      eventId: "e0203",
+      text: "그대로 해.",
+      expectedStages: ["instruct"],
+      instructKind: "continuation",
+    },
+    {
+      id: "evidence",
+      eventId: "e0204",
+      text: "테스트 3개가 통과했다.",
+      expectedStages: ["evidence"],
+    },
+  ];
+
+  const score = scoreInstructUserRecall(sample, [
+    { id: "short", predictedStages: ["instruct"] },
+    { id: "constraint", predictedStages: [] },
+    { id: "evidence", predictedStages: ["instruct"] },
+  ]);
+
+  assert.deepEqual(score, {
+    userUtterances: 4,
+    expected: 3,
+    predicted: 2,
+    hits: 1,
+    precision: 0.5,
+    recall: 1 / 3,
+    missedIds: ["constraint", "continuation"],
+    falsePositiveIds: ["evidence"],
+    perKind: {
+      "short-command": { expected: 1, hits: 1, recall: 1 },
+      constraint: { expected: 1, hits: 0, recall: 0 },
+      continuation: { expected: 1, hits: 0, recall: 0 },
+    },
+  });
 });
