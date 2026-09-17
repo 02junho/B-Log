@@ -23,6 +23,17 @@ test("tagging golden fixture has at least ten unique, stage-labelled user reques
     assert.ok(cases.some((item) => item.expectedStages.includes(stage)));
   }
   assert.ok(cases.some((item) => item.expectedStages.length > 1));
+
+  const instructKinds = new Set(
+    cases.flatMap((item) => (item.instructKind ? [item.instructKind] : [])),
+  );
+  assert.deepEqual(instructKinds, new Set(["short-command", "constraint", "continuation"]));
+  for (const kind of instructKinds) {
+    assert.ok(
+      cases.filter((item) => item.instructKind === kind).length >= 2,
+      `${kind} fixture가 두 건 이상이어야 합니다.`,
+    );
+  }
 });
 
 test("stage scoring measures case-level recall instead of raw finding counts", () => {

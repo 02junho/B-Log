@@ -27,6 +27,7 @@ export interface TaggingGoldenCase {
   eventId: string;
   text: string;
   expectedStages: Stage[];
+  instructKind?: "short-command" | "constraint" | "continuation";
 }
 
 export interface TaggingPrediction {
