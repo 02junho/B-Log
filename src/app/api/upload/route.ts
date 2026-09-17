@@ -27,9 +27,12 @@ export async function POST(request: Request): Promise<Response> {
   // 일일 분석 한도 — 태깅(LLM 비용)의 유일한 입구가 업로드라 여기서 막는다.
   const quota = await checkDailyLimit(db, auth.userId);
   if (!quota.allowed) {
-    return Response.json({ error: quota.reason } satisfies ApiError, {
-      status: 429,
-    });
+    return Response.json(
+      {
+        error: quota.reason ?? "오늘 분석 한도에 도달했습니다.",
+      } satisfies ApiError,
+      { status: 429 },
+    );
   }
 
   const form = await request.formData().catch(() => null);
