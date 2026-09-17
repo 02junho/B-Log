@@ -7,11 +7,18 @@ import {
   tagSession,
   type ChunkRunner,
 } from "../src/lib/pipeline/tag";
+import { TAGGING_SYSTEM } from "../src/lib/prompts/tagging";
 
 const chunk = (id: string, text: string, eventIds: string[]): Chunk => ({
   id,
   eventIds,
   text,
+});
+
+test("tagging prompt separates problem from user instruction and allows both", () => {
+  assert.match(TAGGING_SYSTEM, /problem과 instruct는 배타적이지 않다/);
+  assert.match(TAGGING_SYSTEM, /instruct의 quote는 반드시 \[eNNNN\] user:/);
+  assert.match(TAGGING_SYSTEM, /먼저 실패 테스트를 추가하고 고쳐줘/);
 });
 
 test("mapWithConcurrency preserves order and respects the limit", async () => {
@@ -84,6 +91,50 @@ test("quote verification supports multiline text but excludes rendered headers a
   }));
   assert.deepEqual(r.findings.map((f) => f.quote.text), ["첫 줄\n둘째 줄"]);
   assert.equal(r.droppedQuotes, 3);
+});
+
+test("problem and instruction can share one user event while assistant plans cannot be instructions", async () => {
+  const c = chunk(
+    "c001",
+    "[e0001] user: 로그인 오류가 난다. 먼저 실패 테스트를 추가하고 고쳐줘.\n" +
+      "[e0002] assistant: 원인을 확인하고 수정하겠습니다.",
+    ["e0001", "e0002"],
+  );
+  const r = await tagChunk(c, async () => ({
+    output: {
+      findings: [
+        {
+          stage: "problem",
+          summary: "로그인 오류 제시",
+          quote: { eventId: "e0001", text: "로그인 오류가 난다." },
+          confidence: 0.9,
+        },
+        {
+          stage: "instruct",
+          summary: "실패 테스트를 먼저 추가하도록 요청",
+          quote: {
+            eventId: "e0001",
+            text: "먼저 실패 테스트를 추가하고 고쳐줘.",
+          },
+          confidence: 0.9,
+        },
+        {
+          stage: "instruct",
+          summary: "AI 계획을 사용자 지시로 오인",
+          quote: { eventId: "e0002", text: "원인을 확인하고 수정하겠습니다." },
+          confidence: 0.9,
+        },
+      ],
+    },
+    inputTokens: 1,
+    outputTokens: 1,
+  }));
+
+  assert.deepEqual(
+    r.findings.map((finding) => finding.stage),
+    ["problem", "instruct"],
+  );
+  assert.equal(r.droppedQuotes, 1);
 });
 
 test("tagSession aggregates findings, failures, and usage", async () => {
