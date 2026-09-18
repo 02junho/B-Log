@@ -69,14 +69,14 @@ export default function Home() {
       <section className="landing-demos" aria-label="데모 포트폴리오 모음">
         <div className="landing-demos-inner">
           <p className="eyebrow">SEE THE DIFFERENCE</p>
-          <h2>같은 도구, 다른 지휘. 기록이 증명합니다.</h2>
+          <h2>같은 도구, 다른 활용. 기록이 증명합니다.</h2>
           <div className="demo-cards">
             <Link href="/p/b-log를-만든-과정-64632d" className="demo-card">
               <span className="demo-tag good">실제 기록 · 메타 데모</span>
               <h3>B-Log를 만든 과정</h3>
               <p>
                 이 서비스의 개발 로그 10일치를 서비스 자신이 분석했습니다.
-                159개의 검증된 순간과 29개의 커밋 연결.
+                170개의 검증된 순간과 29개의 커밋 연결.
               </p>
               <span className="demo-cta">보러 가기 ↗</span>
             </Link>
@@ -88,7 +88,7 @@ export default function Home() {
               <h3>AI에 통째로 맡긴 하루</h3>
               <p>
                 요구사항도 검증도 없이 &ldquo;응 다 해줘&rdquo;로 만든 기록.
-                좋은 지휘와 무엇이 다른지 비교해 보세요.
+                좋은 활용과 무엇이 다른지 비교해 보세요.
               </p>
               <span className="demo-cta">보러 가기 ↗</span>
             </Link>
