@@ -76,5 +76,47 @@
     "eventId": "e0113",
     "text": "수정 후 회귀 테스트 3개가 모두 통과했음을 확인했다.",
     "expectedStages": ["evidence"]
+  },
+  {
+    "id": "instruct-short-review",
+    "eventId": "e0114",
+    "text": "리뷰 진행해.",
+    "expectedStages": ["instruct"],
+    "instructKind": "short-command"
+  },
+  {
+    "id": "instruct-short-check",
+    "eventId": "e0115",
+    "text": "커밋 전에 다시 점검해.",
+    "expectedStages": ["instruct"],
+    "instructKind": "short-command"
+  },
+  {
+    "id": "instruct-constraint-merge",
+    "eventId": "e0116",
+    "text": "머지할 수 없으면 시도하지 마.",
+    "expectedStages": ["instruct"],
+    "instructKind": "constraint"
+  },
+  {
+    "id": "instruct-constraint-push",
+    "eventId": "e0117",
+    "text": "커밋만 하고 푸시하지 않은 상태로 대기해.",
+    "expectedStages": ["instruct"],
+    "instructKind": "constraint"
+  },
+  {
+    "id": "instruct-continuation-proceed",
+    "eventId": "e0118",
+    "text": "그대로 해.",
+    "expectedStages": ["instruct"],
+    "instructKind": "continuation"
+  },
+  {
+    "id": "instruct-continuation-resume",
+    "eventId": "e0119",
+    "text": "중단한 E2E 검증을 이어서 진행해.",
+    "expectedStages": ["instruct"],
+    "instructKind": "continuation"
   }
 ]

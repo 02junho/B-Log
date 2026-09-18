@@ -27,7 +27,16 @@ export interface TaggingGoldenCase {
   eventId: string;
   text: string;
   expectedStages: Stage[];
+  instructKind?: InstructKind;
 }
+
+export type InstructKind = "short-command" | "constraint" | "continuation";
+
+export const INSTRUCT_KINDS: readonly InstructKind[] = [
+  "short-command",
+  "constraint",
+  "continuation",
+];
 
 export interface TaggingPrediction {
   id: string;
@@ -42,16 +51,78 @@ export interface StageScore {
   recall: number;
 }
 
+export interface InstructKindScore {
+  expected: number;
+  hits: number;
+  recall: number;
+}
+
+export interface InstructRecallScore extends StageScore {
+  userUtterances: number;
+  missedIds: string[];
+  falsePositiveIds: string[];
+  perKind: Record<InstructKind, InstructKindScore>;
+}
+
 export interface RecallScore {
   cases: number;
   exactMatches: number;
   exactMatchRate: number;
   macroRecall: number;
   perStage: Record<Stage, StageScore>;
+  instruct: InstructRecallScore;
 }
 
 const uniqueStages = (stages: readonly Stage[]): Stage[] =>
   STAGES.filter((stage) => stages.includes(stage));
+
+export function scoreInstructUserRecall(
+  cases: readonly TaggingGoldenCase[],
+  predictions: readonly TaggingPrediction[],
+): InstructRecallScore {
+  const byId = new Map(predictions.map((prediction) => [prediction.id, prediction]));
+  const expectsInstruct = (item: TaggingGoldenCase): boolean =>
+    item.expectedStages.includes("instruct");
+  const predictsInstruct = (item: TaggingGoldenCase): boolean =>
+    byId.get(item.id)?.predictedStages.includes("instruct") ?? false;
+  const expected = cases.filter(expectsInstruct).length;
+  const predicted = cases.filter(predictsInstruct).length;
+  const hits = cases.filter(
+    (item) => expectsInstruct(item) && predictsInstruct(item),
+  ).length;
+  const missedIds = cases
+    .filter((item) => expectsInstruct(item) && !predictsInstruct(item))
+    .map((item) => item.id);
+  const falsePositiveIds = cases
+    .filter((item) => !expectsInstruct(item) && predictsInstruct(item))
+    .map((item) => item.id);
+  const perKind = Object.fromEntries(
+    INSTRUCT_KINDS.map((kind) => {
+      const kindCases = cases.filter((item) => item.instructKind === kind);
+      const kindHits = kindCases.filter(predictsInstruct).length;
+      return [
+        kind,
+        {
+          expected: kindCases.length,
+          hits: kindHits,
+          recall: kindCases.length ? kindHits / kindCases.length : 0,
+        },
+      ];
+    }),
+  ) as Record<InstructKind, InstructKindScore>;
+
+  return {
+    userUtterances: cases.length,
+    expected,
+    predicted,
+    hits,
+    precision: predicted ? hits / predicted : 0,
+    recall: expected ? hits / expected : 0,
+    missedIds,
+    falsePositiveIds,
+    perKind,
+  };
+}
 
 export function scoreTaggingCases(
   cases: readonly TaggingGoldenCase[],
@@ -98,6 +169,7 @@ export function scoreTaggingCases(
     macroRecall:
       STAGES.reduce((sum, stage) => sum + perStage[stage].recall, 0) / STAGES.length,
     perStage,
+    instruct: scoreInstructUserRecall(cases, predictions),
   };
 }
 
@@ -185,6 +257,19 @@ function reportMarkdown(results: readonly VariantResult[]): string {
         `${STAGES.map((stage) => percent(result.score.perStage[stage].precision)).join(" / ")} |`,
     )
     .join("\n");
+  const instructRows = results
+    .map((result) => {
+      const score = result.score.instruct;
+      const kindRecall = INSTRUCT_KINDS.map((kind) =>
+        percent(score.perKind[kind].recall),
+      ).join(" / ");
+      return (
+        `| ${result.label} | ${score.userUtterances} | ${score.hits}/${score.expected} | ` +
+        `${percent(score.recall)} | ${percent(score.precision)} | ${kindRecall} | ` +
+        `${score.missedIds.join(", ") || "없음"} | ${score.falsePositiveIds.join(", ") || "없음"} |`
+      );
+    })
+    .join("\n");
   return `# 태깅 정답 fixture A/B
 
 - 사례 수: ${results[0]?.score.cases ?? 0}
@@ -193,6 +278,14 @@ function reportMarkdown(results: readonly VariantResult[]): string {
 | 프롬프트 | exact match | macro recall | 단계별 recall (p/i/e/r) | 단계별 precision (p/i/e/r) |
 | --- | --- | --- | --- | --- |
 ${rows}
+
+## 사용자 발화 instruct 전용 검사
+
+모든 fixture 사례를 사용자 발화로 보고 instruct 탐지 여부를 대조한다.
+
+| 프롬프트 | 사용자 발화 | 적중/정답 | recall | precision | 유형별 recall (짧은 명령/제약/계속 지시) | 누락 ID | 오탐 ID |
+| --- | ---: | ---: | ---: | ---: | --- | --- | --- |
+${instructRows}
 `;
 }
 
