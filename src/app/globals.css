@@ -230,7 +230,7 @@ input {
 }
 .fidelity,
 .tool-tag {
-  font-size: 10px;
+  font-size: 11px;
   border-radius: 5px;
   padding: 5px 9px;
   display: inline-flex;
@@ -284,7 +284,7 @@ input {
   border-color: #dbe3d8;
 }
 .share-status {
-  font-size: 10px;
+  font-size: 11px;
   color: #798575;
   margin-top: 13px;
   min-height: 15px;
@@ -315,7 +315,7 @@ input {
 .stat-label {
   display: flex;
   gap: 10px;
-  font-size: 11px;
+  font-size: 12px;
   color: #73806d;
 }
 .stat-index {
@@ -337,7 +337,7 @@ input {
   color: #76846d;
 }
 .stat-detail {
-  font-size: 10px;
+  font-size: 11px;
   color: #88917f;
 }
 .section-nav {
@@ -349,7 +349,7 @@ input {
 }
 .section-nav a {
   padding: 0 0 17px;
-  font-size: 12px;
+  font-size: 13px;
   color: #737e6e;
   font-weight: 550;
   border-bottom: 2px solid transparent;
@@ -368,7 +368,7 @@ input {
   margin-left: auto;
   padding-bottom: 17px;
   font-family: var(--font-geist-mono), monospace;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 1.4px;
   color: #919b89;
 }
@@ -461,7 +461,7 @@ input {
   margin: 14px 0 9px;
 }
 .stage-card p {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.9;
   color: #747e6d;
   word-break: keep-all;
@@ -478,14 +478,14 @@ input {
 }
 .count-label {
   font-family: var(--font-geist-mono), monospace;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 1px;
   color: #819075;
   white-space: nowrap;
   padding-bottom: 5px;
 }
 .section-description {
-  font-size: 12px;
+  font-size: 13px;
   color: #7e8876;
   margin-top: -13px;
   margin-bottom: 20px;
@@ -510,13 +510,13 @@ input {
   background: var(--stage-bg);
   color: var(--stage);
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   padding: 4px 7px;
 }
 .scene-number {
   font-family: var(--font-geist-mono), monospace;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 1px;
   color: #97a08f;
 }
@@ -529,7 +529,7 @@ input {
   overflow-wrap: anywhere;
 }
 .highlight blockquote {
-  font-size: 13px;
+  font-size: 14px;
   background: #f6f8f3;
   padding: 18px 20px 18px 39px;
   border-radius: 5px;
@@ -557,7 +557,7 @@ input {
   justify-content: space-between;
   padding: 13px 0;
   color: #7d8b70;
-  font-size: 10px;
+  font-size: 11px;
   list-style: none;
 }
 .highlight summary::-webkit-details-marker {
@@ -569,7 +569,7 @@ input {
 .highlight details p {
   padding-bottom: 15px;
   line-height: 1.8;
-  font-size: 11px;
+  font-size: 12px;
   color: #68755d;
   overflow-wrap: anywhere;
 }
@@ -589,7 +589,7 @@ input {
 }
 .sidebar-card > p:not(.eyebrow) {
   color: #7a876e;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
 }
 .role-chart {
@@ -620,7 +620,7 @@ input {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: 12px;
   color: #6c795e;
 }
 .participation i {
@@ -634,7 +634,7 @@ input {
   font-weight: 600;
 }
 .participation dd span {
-  font-size: 10px;
+  font-size: 11px;
   color: #7e8a72;
   margin-left: 3px;
 }
@@ -643,7 +643,7 @@ input {
   border-top: 1px solid #e8ede1;
   margin-top: 20px;
   padding-top: 16px;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.8;
   color: #87917d;
 }
@@ -666,7 +666,7 @@ input {
   margin: 17px 0 14px;
 }
 .sidebar-note p {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.95;
   color: #b2c4a6;
   word-break: keep-all;
@@ -687,13 +687,13 @@ input {
 }
 .analysis-note h3 {
   color: #66775b;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   margin-bottom: 8px;
 }
 .analysis-note p {
   color: #8a947d;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.9;
 }
 .filters {
@@ -708,7 +708,7 @@ input {
   color: #6b785e;
   padding: 8px 12px;
   border-radius: 5px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .filters button.selected {
   background: #2e4b33;
@@ -721,7 +721,7 @@ input {
 .filters button span {
   margin-left: 4px;
   opacity: 0.7;
-  font-size: 10px;
+  font-size: 11px;
 }
 .timeline {
   list-style: none;
@@ -747,7 +747,7 @@ input {
   bottom: 29px;
 }
 .time-rail {
-  font-size: 10px;
+  font-size: 11px;
   color: #8a947e;
   display: flex;
   gap: 9px;
@@ -764,7 +764,7 @@ input {
   box-shadow: 0 0 0 4px var(--background);
 }
 .timeline-item h3 {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 620;
   margin: 10px 0;
   line-height: 1.85;
@@ -774,7 +774,7 @@ input {
   border-left: 2px solid #dce4d1;
   padding: 3px 0 3px 13px;
   color: #7a876e;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.9;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -789,7 +789,7 @@ input {
   border-radius: 5px;
   padding: 9px 12px;
   margin-top: 14px;
-  font-size: 10px;
+  font-size: 11px;
   color: #7e8a74;
   overflow-wrap: anywhere;
 }
@@ -819,13 +819,13 @@ input {
   transform: scale(0.8);
 }
 .portfolio-footer p {
-  font-size: 11px;
+  font-size: 12px;
   color: #7b8870;
 }
 .portfolio-footer > span {
   margin-left: auto;
   font-family: var(--font-geist-mono), monospace;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 1px;
   color: #89957c;
 }
@@ -922,7 +922,7 @@ input {
 }
 .landing-caption {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 14px;
   color: #86927b;
 }
@@ -969,7 +969,7 @@ input {
   gap: 16px;
   padding: 14px 0;
   border-bottom: 1px solid #e9ede4;
-  font-size: 12px;
+  font-size: 13px;
 }
 .preview-flow b {
   color: #91a17b;
@@ -981,7 +981,7 @@ input {
   color: #829667;
 }
 .preview-body > p {
-  font-size: 10px;
+  font-size: 11px;
   color: #8b957e;
   margin-top: 22px;
 }
@@ -991,7 +991,7 @@ input {
   display: flex;
   justify-content: space-between;
   color: #7c8a6d;
-  font-size: 11px;
+  font-size: 12px;
 }
 @media (max-width: 1000px) {
   .portfolio-shell {
@@ -1041,7 +1041,7 @@ input {
   .landing-footer {
     padding: 20px;
     gap: 20px;
-    font-size: 10px;
+    font-size: 11px;
   }
   .header-inner {
     height: 70px;
@@ -1054,7 +1054,7 @@ input {
     font-size: 22px;
   }
   .header-inner nav {
-    font-size: 11px;
+    font-size: 12px;
   }
   .header-inner nav a {
     gap: 8px;
@@ -1067,7 +1067,7 @@ input {
   }
   .demo-notice {
     flex-wrap: wrap;
-    font-size: 10px;
+    font-size: 11px;
   }
   .demo-notice > span:last-child {
     margin-left: 15px;
@@ -1118,18 +1118,18 @@ input {
     font-size: 27px;
   }
   .stat-detail {
-    font-size: 9px;
+    font-size: 10px;
   }
   .stat-label {
     gap: 7px;
-    font-size: 10px;
+    font-size: 11px;
   }
   .section-nav {
     gap: 19px;
     margin-top: 28px;
   }
   .section-nav a {
-    font-size: 10px;
+    font-size: 12px;
   }
   .section-nav a > span {
     display: none;
@@ -1145,7 +1145,7 @@ input {
   }
   .section-heading .count-label {
     padding-top: 4px;
-    font-size: 8px;
+    font-size: 9px;
   }
   .stage-grid {
     gap: 10px;
@@ -1154,7 +1154,7 @@ input {
     padding: 15px;
   }
   .stage-card p {
-    font-size: 12px;
+    font-size: 13px;
   }
   .stage-card h3 {
     font-size: 14px;
@@ -1190,7 +1190,7 @@ input {
     gap: 8px;
   }
   .time-rail {
-    font-size: 9px;
+    font-size: 10px;
     gap: 6px;
   }
   .timeline-item h3 {
@@ -1204,10 +1204,10 @@ input {
   }
   .filters button {
     padding: 8px 9px;
-    font-size: 10px;
+    font-size: 11px;
   }
   .filters button span {
-    font-size: 9px;
+    font-size: 10px;
   }
   .portfolio-footer {
     flex-wrap: wrap;
@@ -1217,7 +1217,7 @@ input {
     display: none;
   }
   .portfolio-footer p {
-    font-size: 10px;
+    font-size: 11px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
